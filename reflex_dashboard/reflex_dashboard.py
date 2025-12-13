@@ -1,4 +1,21 @@
 import reflex as rx
+import sys
+import os
+
+# --- STRICT VIRTUAL ENVIRONMENT ENFORCEMENT ---
+# This ensures the project only runs within the 'reflex_dashboard_virtual' environment.
+if "reflex_dashboard_virtual" not in sys.prefix:
+    print("\n" + "="*80)
+    print("❌ CRITICAL ERROR: VIRTUAL ENVIRONMENT MISMATCH")
+    print("="*80)
+    print(f"This project requires the 'reflex_dashboard_virtual' environment.")
+    print(f"Current detected environment: {sys.prefix}")
+    print("\nPlease activate the correct environment before running:")
+    print("   source reflex_dashboard_virtual/bin/activate")
+    print("="*80 + "\n")
+    sys.exit(1)
+# -----------------------------------------------
+
 import pandas as pd
 import os
 import google.generativeai as genai
@@ -49,7 +66,7 @@ class State(rx.State):
             self._df.columns = self._df.columns.str.upper().str.strip()
             
             column_mapping = {
-                "BILLING DATE": "Month",
+                "BILLING DATE": "Billing_Date", # Renamed from Month to avoid confusion
                 "TOTAL VALUE": "Sales Amount",
                 "BRAND DESCRIPTION": "Brand",
                 "SKU QTY": "Quantity",
@@ -78,6 +95,23 @@ class State(rx.State):
                             "DIRECT": "B2C", # Assumption if Direct exists
                             "DEALER": "B2B", # Assumption
                         })
+                    if col == "Channel":
+                        # Standardize Channel Names (mapping raw to user provided list)
+                        # We use simple string matching or exact mapping if we knew keys
+                        # Assuming common raw values based on target names
+                        
+                        def map_channel(val):
+                            v_upper = val.upper()
+                            if "AMAZON" in v_upper: return "Amazon"
+                            if "FLIPKART" in v_upper: return "Flipkart"
+                            if "RCLUN" in v_upper: return "rclun.in"
+                            # Check for Business Club specifically first (as it might contain Rajnigandha in full name)
+                            if "BUSINESS CLUB" in v_upper: return "Rajnigandha Business Club" 
+                            if "RAJNIGANDHA" in v_upper: return "rajnigandha.com"
+                            if "B2B" in v_upper or "DEALER" in v_upper: return "B2B" # Map generic B2B
+                            return val # Fallback
+                            
+                        self._df[col] = self._df[col].apply(map_channel)
 
             # Handle Sales Amount (remove commas, convert to numeric)
             if self._df["Sales Amount"].dtype == "object":
@@ -96,9 +130,10 @@ class State(rx.State):
                 self._df["DISCOUNT AMOUNT"] = pd.to_numeric(self._df["DISCOUNT AMOUNT"], errors="coerce").fillna(0)
 
             # Handle Date (19-04-2025 -> datetime -> YYYY-MM)
-            self._df["Month"] = pd.to_datetime(self._df["Month"], format="%d-%m-%Y", errors="coerce")
-            # We need Month to be Datetime for operations, but maybe we want to normalize it to start of month
-            self._df["Month_Date"] = self._df["Month"].dt.to_period("M").dt.to_timestamp()
+            # Billing_Date holds the actual daily date
+            self._df["Billing_Date"] = pd.to_datetime(self._df["Billing_Date"], format="%d-%m-%Y", errors="coerce")
+            # Create Month_Date for grouping by period
+            self._df["Month_Date"] = self._df["Billing_Date"].dt.to_period("M").dt.to_timestamp()
             self._df["Month_Label"] = self._df["Month_Date"].dt.strftime('%B-%Y')
             
             # Populate Filter Options (Categorical columns are now guaranteed strings)
@@ -786,6 +821,219 @@ class State(rx.State):
     def toggle_sidebar(self):
         self.is_sidebar_open = not self.is_sidebar_open
 
+    # --- New KPI Calculations ---
+
+    @rx.var
+    def days_in_range(self) -> int:
+        if self.filtered_df.empty or "Billing_Date" not in self.filtered_df.columns:
+            return 1
+        
+        # Calculate days based on selected month range
+        # We use the min and max month
+        min_date = self.filtered_df["Billing_Date"].min()
+        max_date = self.filtered_df["Billing_Date"].max()
+        
+        if pd.isna(min_date) or pd.isna(max_date):
+            return 1
+            
+        # Add roughly one month (30 days) to the max date to cover the end of the month
+        # Since Month is just the 1st of the month.
+        delta = (max_date - min_date).days + 30 
+        return delta if delta > 0 else 1
+
+    @rx.var
+    def daily_sales_velocity_data(self) -> Dict[str, str]:
+        if self.filtered_df.empty:
+             return {"total": "₹0 L", "b2b": "₹0 L", "b2c": "₹0 L"}
+        
+        total_sales = self.filtered_df["Sales Amount"].sum()
+        
+        # User defined: "total sales divided by unique number of billing date"
+        # "Billing_Date" column holds the billing date as datetime
+        days = self.filtered_df["Billing_Date"].nunique()
+        
+        daily_velocity = total_sales / days if days > 0 else 0
+        
+        # B2B/B2C Breakdown
+        if "TYPE OF SUPPLY" in self.filtered_df.columns:
+            b2b_sales = self.filtered_df[self.filtered_df["TYPE OF SUPPLY"] == "B2B"]["Sales Amount"].sum()
+            b2c_sales = self.filtered_df[self.filtered_df["TYPE OF SUPPLY"] == "B2C"]["Sales Amount"].sum()
+        else:
+            b2b_sales = 0
+            b2c_sales = 0
+            
+        b2b_daily = b2b_sales / days if days > 0 else 0
+        b2c_daily = b2c_sales / days if days > 0 else 0
+        
+        # Format as Lacs (L)
+        return {
+            "total": f"₹{daily_velocity/100000:,.2f} L",
+            "b2b": f"₹{b2b_daily/100000:,.2f}L",
+            "b2c": f"₹{b2c_daily/100000:,.2f}L"
+        }
+
+    @rx.var
+    def invoice_stats(self) -> Dict[str, str]:
+        if self.filtered_df.empty:
+            return {"count": "0", "daily_avg": "0"}
+            
+        invoices = self.filtered_df[self.filtered_df["DOCUMENT DESCRIPTION"] != "Sales Return"]
+        unique_invoices = invoices["BILLING DOCUMENT"].nunique()
+        
+        # User defined: "Unique BILLING DOCUMENT ... divided by Count of unique BILLING DATE"
+        days = self.filtered_df["Billing_Date"].nunique()
+        
+        daily_avg = unique_invoices / days if days > 0 else 0
+        
+        return {
+            "count": f"{unique_invoices:,}",
+            "daily_avg": f"~{int(daily_avg)}"
+        }
+
+    @rx.var
+    def return_breakdown(self) -> List[Dict[str, str]]:
+        if self.filtered_df.empty:
+            return []
+            
+        # Filter for B2C specifically as per card title "B2C RETURN RATE"
+        # And also ensure "TYPE OF SUPPLY" column exists
+        if "TYPE OF SUPPLY" not in self.filtered_df.columns:
+             return []
+             
+        b2c_df = self.filtered_df[self.filtered_df["TYPE OF SUPPLY"] == "B2C"]
+        
+        if b2c_df.empty:
+            return []
+            
+        breakdown = []
+        present_channels = b2c_df["Channel"].unique()
+        
+        for ch in present_channels:
+            ch_data = b2c_df[b2c_df["Channel"] == ch]
+            ch_invoices = ch_data[ch_data["DOCUMENT DESCRIPTION"] != "Sales Return"]["BILLING DOCUMENT"].nunique()
+            ch_returns = ch_data[ch_data["DOCUMENT DESCRIPTION"] == "Sales Return"]["BILLING DOCUMENT"].nunique()
+            
+            ch_rate = (ch_returns / ch_invoices * 100) if ch_invoices > 0 else 0.0
+            
+            if ch_rate > 0: # Only show significant ones
+                breakdown.append({
+                    "channel": str(ch),
+                    "rate": str(ch_rate), # for sorting if needed, but we formatted it
+                    "formatted_rate": f"{ch_rate:.2f}%"
+                })
+        
+        # Sort by rate numerically
+        breakdown.sort(key=lambda x: float(x["rate"]), reverse=True)
+        return breakdown[:5]
+
+    @rx.var
+    def return_metrics(self) -> Dict[str, str]:
+        if self.filtered_df.empty:
+             return {"count": "0", "rate_pct": "0.00%", "val_cr": "₹0.00 Cr"}
+        
+        # Returns
+        returns_df = self.filtered_df[self.filtered_df["DOCUMENT DESCRIPTION"] == "Sales Return"]
+        unique_returns = returns_df["BILLING DOCUMENT"].nunique()
+        
+        # Total Invoices (for rate)
+        invoices_df = self.filtered_df[self.filtered_df["DOCUMENT DESCRIPTION"] != "Sales Return"]
+        total_invoices_count = invoices_df["BILLING DOCUMENT"].nunique()
+        
+        rate = (unique_returns / total_invoices_count * 100) if total_invoices_count > 0 else 0.0
+        
+        return_sum = returns_df["Sales Amount"].sum()
+        return_val = return_sum / 10000000 # Crores
+        
+        return {
+            "count": f"{unique_returns:,}",
+            "rate_pct": f"{rate:.2f}%",
+            "val_cr": f"₹{return_val:,.2f} Cr"
+        }
+
+    @rx.var
+    def pareto_top_products(self) -> List[Dict[str, str]]:
+        if self.filtered_df.empty:
+            return []
+            
+        sales_df = self.filtered_df[self.filtered_df["Sales Amount"] > 0]
+        if sales_df.empty:
+             return []
+             
+        product_sales = sales_df.groupby("Product")["Sales Amount"].sum().sort_values(ascending=False).reset_index()
+        total_sales = product_sales["Sales Amount"].sum()
+        
+        if total_sales <= 0:
+            return []
+            
+        top_5 = product_sales.head(5).to_dict('records')
+        formatted_top_5 = []
+        for i, row in enumerate(top_5):
+            contribution = (row["Sales Amount"] / total_sales * 100)
+            val_cr = row["Sales Amount"] / 10000000
+            formatted_top_5.append({
+                "rank": str(i+1),
+                "name": str(row["Product"]),
+                "pct": f"{contribution:.1f}%",
+                "value_cr": f"₹{val_cr:,.2f} Cr"
+            })
+        return formatted_top_5
+
+    @rx.var
+    def pareto_stats(self) -> Dict[str, Any]:
+        if self.filtered_df.empty:
+             return {"count_80": 0, "pct_catalog": "0.0%"}
+             
+        sales_df = self.filtered_df[self.filtered_df["Sales Amount"] > 0]
+        
+        product_sales = sales_df.groupby("Product")["Sales Amount"].sum().sort_values(ascending=False).reset_index()
+        total_sales = product_sales["Sales Amount"].sum()
+        
+        if total_sales <= 0:
+            return {"count_80": 0, "pct_catalog": "0.0%"}
+            
+        product_sales["cumulative_sales"] = product_sales["Sales Amount"].cumsum()
+        product_sales["cumulative_pct"] = product_sales["cumulative_sales"] / total_sales
+        
+        cutoff_mask = product_sales["cumulative_pct"] <= 0.80
+        count_80 = cutoff_mask.sum()
+        
+        if count_80 == 0 and not product_sales.empty:
+             count_80 = 1
+        elif count_80 < len(product_sales):
+             count_80 += 1
+             
+        total_products = len(product_sales)
+        pct_catalog = (count_80 / total_products * 100) if total_products > 0 else 0
+        
+        return {
+            "count_80": str(count_80),
+            "pct_catalog": f"({pct_catalog:.1f}% of catalog)"
+        }
+
+
+    @rx.var
+    def avg_monthly_b2b(self) -> str:
+        if self.filtered_df.empty:
+            return "₹0.00 Cr"
+        b2b_df = self.filtered_df[self.filtered_df["TYPE OF SUPPLY"] == "B2B"]
+        total_sales = b2b_df["Sales Amount"].sum() / 10000000
+        unique_months = self.filtered_df["Month_Label"].nunique()
+        if unique_months == 0:
+            return "₹0.00 Cr"
+        avg = total_sales / unique_months
+        return f"₹{avg:,.2f} Cr"
+
+    @rx.var
+    def avg_monthly_b2c(self) -> str:
+        if self.filtered_df.empty:
+            return "₹0.00 Cr"
+        b2c_df = self.filtered_df[self.filtered_df["TYPE OF SUPPLY"] == "B2C"]
+        total_sales = b2c_df["Sales Amount"].sum() / 10000000
+        unique_months = self.filtered_df["Month_Label"].nunique()
+        if unique_months == 0:
+            return "₹0.00 Cr"
+        avg = total_sales / unique_months
+        return f"₹{avg:,.2f} Cr"
 
 # Styling Constants - Dark Mode
 # Styling Constants - Pitch Black Mode
@@ -943,9 +1191,9 @@ def kpi_card(title: str, value: str, trend: str, icon: str, color_scheme: str, b
             
             spacing="4",
             align_items=align,
-            width="100%",
+            # removed width="100%" to let padding work naturally
         ),
-        padding="5",
+        padding="24px", 
         bg=bg_color,
         border=f"1px solid {color_scheme}" if bg_color != "rgba(255, 255, 255, 0.03)" else "1px solid rgba(255, 255, 255, 0.1)",
         border_radius="xl",
@@ -1221,6 +1469,220 @@ def sidebar_component() -> rx.Component:
         z_index="1000"
     )
 
+
+
+
+def card_avg_monthly_sale():
+    return rx.box(
+        rx.vstack(
+            rx.hstack(
+                rx.text("AVG. MONTHLY SALE", color="white", font_weight="bold", font_size="sm"),
+                rx.badge("↗ 14.9% Avg. Growth", color_scheme="green", variant="solid", border_radius="full", padding_x="2"),
+                rx.spacer(),
+                rx.center(
+                    rx.text("₹", color="white", font_size="xl", font_weight="bold"),
+                    bg="rgba(255,255,255,0.2)",
+                    width="40px",
+                    height="40px",
+                    border_radius="full"
+                ),
+                width="100%",
+                align="center",
+            ),
+            rx.heading(State.average_monthly_sale, color="white", size="8", font_weight="bold"),
+            rx.spacer(),
+            rx.hstack(
+                 rx.icon("briefcase", color="white", size=16),
+                 rx.text(State.avg_monthly_b2b, color="white", font_size="xs", font_weight="bold"),
+                 rx.spacer(),
+                 rx.icon("shopping-cart", color="white", size=16),
+                 rx.text(State.avg_monthly_b2c, color="white", font_size="xs", font_weight="bold"),
+                 width="100%",
+                 align="center"
+            ),
+            height="100%",
+            justify="between",
+            align_items="start",
+            spacing="2"
+        ),
+        bg="linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)", # Orange Gradient
+        border_radius="xl",
+        padding="24px", # Explicit padding
+        width="100%",
+        height="180px",
+        box_shadow="lg"
+    )
+
+def card_daily_velocity():
+    return rx.box(
+         rx.vstack(
+            rx.hstack(
+                rx.text("DAILY SALES VELOCITY", color="white", font_weight="bold", font_size="sm"),
+                rx.spacer(),
+                rx.center(
+                    rx.icon("zap", color="white", size=20),
+                    bg="rgba(255,255,255,0.2)",
+                    width="40px",
+                    height="40px",
+                    border_radius="full"
+                ),
+                width="100%",
+                align="center",
+            ),
+            rx.heading(State.daily_sales_velocity_data["total"], color="white", size="8", font_weight="bold"),
+            rx.spacer(),
+            rx.hstack(
+                 rx.icon("briefcase", color="white", size=16),
+                 rx.text("B2B: ", State.daily_sales_velocity_data["b2b"], color="white", font_size="xs", font_weight="bold"),
+                 rx.spacer(),
+                 rx.icon("shopping-cart", color="white", size=16),
+                 rx.text("B2C: ", State.daily_sales_velocity_data["b2c"], color="white", font_size="xs", font_weight="bold"),
+                 width="100%",
+                 align="center"
+            ),
+            height="100%",
+            justify="between",
+            align_items="start",
+            spacing="2"
+        ),
+        bg="linear-gradient(135deg, #00C6FF 0%, #0072FF 100%)", # Blue Gradient
+        border_radius="xl",
+        padding="24px", # Explicit padding
+        width="100%",
+        height="180px",
+        box_shadow="lg"
+    )
+
+def card_returns_invoices():
+    return rx.box(
+        rx.vstack(
+            rx.flex(
+                # Left: Returns
+                rx.box(
+                    rx.vstack(
+                        rx.hstack(rx.icon("rotate-ccw", color="white", size=16), rx.text("RETURNS", color="white", font_weight="bold", font_size="xs")),
+                        rx.heading(State.return_metrics["count"], color="white", size="6", font_weight="bold"),
+                        rx.text("Rate: ", State.return_metrics["rate_pct"], color="white", font_size="xs"),
+                        rx.text(State.return_metrics["val_cr"], color="white", font_size="xs"),
+                        align_items="start",
+                        spacing="1",
+                        width="100%"
+                    ),
+                    bg="rgba(0, 0, 0, 0.2)", # Darker tone for differentiation
+                    padding="12px",
+                    border_radius="lg",
+                    flex="1",
+                ),
+                # No divider, just visual separation via background
+                 # Right: Invoices
+                rx.box(
+                    rx.vstack(
+                        rx.hstack(rx.icon("file-text", color="white", size=16), rx.text("INVOICES", color="white", font_weight="bold", font_size="xs")),
+                        rx.heading(State.invoice_stats["count"], color="white", size="6", font_weight="bold"),
+                        rx.text("Daily Avg", color="white", font_size="xs"),
+                        rx.text(State.invoice_stats["daily_avg"], color="white", font_size="xs", font_weight="bold"),
+                        align_items="start",
+                        spacing="1",
+                        width="100%"
+                    ),
+                    bg="rgba(0, 0, 0, 0.2)", # Darker tone for differentiation
+                    padding="12px",
+                    border_radius="lg",
+                    flex="1.2", # Give it slightly more space or equal
+                ),
+                width="100%",
+                spacing="2", # Gap between them
+                align_items="stretch" # Stretch to match height
+            ),
+            rx.separator(color_scheme="gray", opacity=0.3),
+            rx.text("B2C RETURN RATE (CHANNEL)", color="white", font_weight="bold", font_size="xs", width="100%"),
+            # Small Table for Channel Returns
+            rx.vstack(
+                rx.foreach(
+                    State.return_breakdown,
+                    lambda item: rx.hstack(
+                        rx.text(item["channel"], color="white", font_size="xs"),
+                        rx.spacer(),
+                        rx.badge(item["formatted_rate"], color_scheme="gray", variant="surface", size="1"),
+                        width="100%",
+                        padding_y="1",
+                        border_bottom="1px solid rgba(255,255,255,0.1)"
+                    )
+                ),
+                width="100%",
+                spacing="0"
+            ),
+            spacing="3",
+            width="100%"
+        ),
+        bg="linear-gradient(135deg, #e53935 0%, #e35d5b 100%)", # Red Gradient
+        border_radius="xl",
+        padding="24px", # Explicit padding
+        width="100%",
+        box_shadow="lg"
+    )
+
+def card_pareto():
+    return rx.box(
+        rx.vstack(
+
+                rx.center(
+                     rx.vstack(
+                        rx.text("PARETO (80% SALE)", color="white", font_weight="bold", font_size="sm"),
+                        rx.heading(
+                            State.pareto_stats["count_80"], 
+                            color="white", 
+                            size="8", 
+                            font_weight="bold"
+                        ),
+                        spacing="1",
+                        align_items="center",
+                        width="100%"
+                     ),
+                     width="100%"
+                ),
+                 rx.box(
+                    rx.vstack(
+                        rx.foreach(
+                            State.pareto_top_products,
+                            lambda item: rx.hstack(
+                                rx.badge(item["rank"], variant="solid", color_scheme="yellow", border_radius="full", size="1"),
+                                rx.text(item["name"], color="white", font_size="xs", no_of_lines=1, width="40%"), # Fixed width for name
+                                rx.spacer(),
+                                rx.text(item["value_cr"], color="white", font_size="xs", font_weight="bold"),
+                                rx.spacer(),
+                                rx.text(item["pct"], color="white", font_size="xs", font_weight="bold"),
+                                width="100%",
+                                padding_y="1",
+                                border_bottom="1px solid rgba(255,255,255,0.1)"
+                            )
+                        ),
+                        width="100%",
+                        spacing="1"
+                    ),
+                    width="100%",
+                    bg="rgba(255,255,255,0.1)",
+                    border_radius="md",
+                    padding="4"
+                ),
+            rx.text(
+                rx.text.span("Products driving 80% of sales ", font_weight="bold"),
+                rx.text.span(State.pareto_stats["pct_catalog"], font_weight="bold"),
+                color="white", 
+                font_size="xs", 
+                text_align="center",
+                width="100%"
+            ),
+            spacing="3",
+            width="100%"
+        ),
+        bg="linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%)", # Purple Gradient
+        border_radius="xl",
+        padding="24px", # Explicit padding
+        width="100%",
+        box_shadow="lg"
+    )
+
 def index() -> rx.Component:
     return rx.flex(
         # Sidebar
@@ -1271,31 +1733,15 @@ def index() -> rx.Component:
                             trend_inline=True, # Trend in bracket inline
                         ),
                         rx.grid(
-                            kpi_card(
-                                title="B2B Revenue", 
-                                value=State.average_monthly_sale,
-                                trend=State.average_monthly_sale_trend, 
-                                icon="briefcase",
-                                color_scheme="#82ca9d", 
-                            ),
-                            kpi_card(
-                                title="B2C Revenue", 
-                                value=State.total_invoices, 
-                                trend=State.total_invoices_trend,
-                                icon="shopping-cart",
-                                color_scheme="#ffc658", 
-                            ),
-                             kpi_card(
-                                title="Return Rate",
-                                value=State.total_sales_return,
-                                trend=State.total_sales_return_trend,
-                                icon="refresh-cw",
-                                color_scheme="#ff8042", 
-                            ),
-                            columns={"initial": "1", "sm": "2", "lg": "3"},
+                            card_avg_monthly_sale(),
+                            card_daily_velocity(),
+                            card_returns_invoices(),
+                            card_pareto(),
+                            columns={"initial": "1", "sm": "1", "lg": "2", "xl": "2"}, # 2x2 Layout
                             spacing="4",
-                            width="100%",
+                            width="100%"
                         ),
+
                         spacing="4",
                         width="100%",
                     ),
