@@ -56,23 +56,78 @@ class State(rx.State):
     # Load data
 
     
-    def load_data(self):
+    # Upload State
+    is_upload_modal_open: bool = True
+    sales_data_uploaded: bool = False
+    courier_data_uploaded: bool = False
+
+    # Load data
+    async def handle_sales_upload(self, files: list[rx.UploadFile]):
+        """Handle sales data upload."""
+        if not files:
+            return
+
+        for file in files:
+            try:
+                upload_data = await file.read()
+                
+                # Save to a temporary file or read directly if pandas supports bytes (it does for read_excel with engine openpyxl usually, or BytesIO)
+                # For simplicity and robustness with read_excel, let's wrap in BytesIO
+                import io
+                df = pd.read_excel(io.BytesIO(upload_data))
+                
+                self.process_sales_data(df)
+                self.sales_data_uploaded = True
+                
+                if self.courier_data_uploaded:
+                    self.deployment_status = "All Files Uploaded Successfully"
+                else:
+                    self.deployment_status = "Sales Data Uploaded Successfully"
+                    
+            except Exception as e:
+                print(f"Error processing sales upload: {e}")
+                self.deployment_status = f"Error: {str(e)}"
+
+    async def handle_courier_upload(self, files: list[rx.UploadFile]):
+        """Handle courier data upload."""
+        if not files:
+             return
+
+        for file in files:
+            try:
+                upload_data = await file.read()
+                import io
+                df = pd.read_excel(io.BytesIO(upload_data))
+                self.process_courier_data(df)
+                self.courier_data_uploaded = True
+                
+                if self.sales_data_uploaded:
+                    self.deployment_status = "All Files Uploaded Successfully"
+                else:
+                    self.deployment_status = "Courier Data Uploaded Successfully"
+
+            except Exception as e:
+                print(f"Error processing courier upload: {e}")
+                self.deployment_status = f"Error: {str(e)}"
+
+    def download_sample_sales(self):
+        """Download sample sales data."""
+        return rx.download(url="/Uoload_ecom_sale.xlsx", filename="Sales_Data_Sample.xlsx")
+
+    def download_sample_courier(self):
+        """Download sample courier data."""
+        return rx.download(url="/Courier_details.xlsx", filename="Courier_Data_Sample.xlsx")
+
+    def process_sales_data(self, df: pd.DataFrame):
+        """Process loaded sales dataframe."""
         try:
-            # Resolve path relative to this file
-            base_path = os.path.dirname(os.path.realpath(__file__))
-            file_path = os.path.join(base_path, "..", "assets", "Uoload_ecom_sale.xlsx")
-            print(f"Loading data from: {file_path}")
-            
-            if not os.path.exists(file_path):
-                 self.deployment_status += f" [Error: Main File NOT FOUND at {file_path}] "
-                 print(f"Error: File not found at {file_path}")
-            
-            self._df = pd.read_excel(file_path)
-            print(f"Data loaded. Rows: {len(self._df)}")
+            # Usage of local temp_df prevents reactive state triggers during intermediate steps
+            temp_df = df.copy()
+            print(f"Data processed. Rows: {len(temp_df)}")
             
             # Column Mapping for Sales_Data.csv
             # Force all columns to uppercase and strip whitespace for consistent matching
-            self._df.columns = self._df.columns.str.upper().str.strip()
+            temp_df.columns = temp_df.columns.str.upper().str.strip()
             
             column_mapping = {
                 "BILLING DATE": "Billing_Date", # Renamed from Month to avoid confusion
@@ -86,72 +141,72 @@ class State(rx.State):
                 "DOCUMENT DESCRIPTION": "DOCUMENT DESCRIPTION",
                 "BILLING DOCUMENT": "BILLING DOCUMENT",
             }
-            self._df = self._df.rename(columns=column_mapping)
+            
+            # VALIDATION: Check if this looks like a sales file
+            # We expect at least TOTAL VALUE or Sales Amount
+            if "TOTAL VALUE" not in temp_df.columns and "Sales Amount" not in temp_df.columns:
+                 raise ValueError("Invalid Sales File. Missing 'TOTAL VALUE' column. Did you upload the Courier file by mistake?")
+
+            temp_df = temp_df.rename(columns=column_mapping)
             # Remove duplicate columns to prevent "Grouper not 1-dimensional" errors
-            self._df = self._df.loc[:, ~self._df.columns.duplicated()]
+            temp_df = temp_df.loc[:, ~temp_df.columns.duplicated()]
 
             # Clean and Convert Data
             
             # 1. Force categorical columns to string to avoid mixed types and comparison errors
             for col in ["Brand", "Channel", "CUSTOMER STATE", "TYPE OF SUPPLY", "Product"]:
-                if col in self._df.columns:
-                    self._df[col] = self._df[col].astype(str).fillna("").str.strip()
+                if col in temp_df.columns:
+                    temp_df[col] = temp_df[col].astype(str).fillna("").str.strip()
                     if col == "TYPE OF SUPPLY":
                         # Standardize B2B/B2C
-                        self._df[col] = self._df[col].str.upper().replace({
+                        temp_df[col] = temp_df[col].str.upper().replace({
                             "BUSINESS TO BUSINESS": "B2B",
                             "BUSINESS TO CONSUMER": "B2C",
                             "DIRECT": "B2C", # Assumption if Direct exists
                             "DEALER": "B2B", # Assumption
                         })
                     if col == "Channel":
-                        # Standardize Channel Names (mapping raw to user provided list)
-                        # We use simple string matching or exact mapping if we knew keys
-                        # Assuming common raw values based on target names
-                        
+                        # Standardize Channel Names
                         def map_channel(val):
                             v_upper = val.upper()
                             if "AMAZON" in v_upper: return "Amazon"
                             if "FLIPKART" in v_upper: return "Flipkart"
                             if "RCLUB" in v_upper: return "rclub.in"
-                            # Check for Business Club specifically first (as it might contain Rajnigandha in full name)
                             if "BUSINESS CLUB" in v_upper: return "Rajnigandha Business Club" 
                             if "RAJNIGANDHA" in v_upper: return "rajnigandha.com"
-                            if "B2B" in v_upper or "DEALER" in v_upper: return "B2B" # Map generic B2B
-                            return val # Fallback
+                            if "B2B" in v_upper or "DEALER" in v_upper: return "B2B" 
+                            return val 
                             
-                        self._df[col] = self._df[col].apply(map_channel)
+                        temp_df[col] = temp_df[col].apply(map_channel)
 
-            # Handle Sales Amount (remove commas, convert to numeric)
-            if self._df["Sales Amount"].dtype == "object":
-                self._df["Sales Amount"] = self._df["Sales Amount"].astype(str).str.replace(",", "", regex=False)
-            self._df["Sales Amount"] = pd.to_numeric(self._df["Sales Amount"], errors="coerce").fillna(0)
+            # Handle Sales Amount
+            if temp_df["Sales Amount"].dtype == "object":
+                temp_df["Sales Amount"] = temp_df["Sales Amount"].astype(str).str.replace(",", "", regex=False)
+            temp_df["Sales Amount"] = pd.to_numeric(temp_df["Sales Amount"], errors="coerce").fillna(0)
             
             # Handle Quantity
-            if self._df["Quantity"].dtype == "object":
-                self._df["Quantity"] = self._df["Quantity"].astype(str).str.replace(",", "", regex=False)
-            self._df["Quantity"] = pd.to_numeric(self._df["Quantity"], errors="coerce").fillna(0)
+            if temp_df["Quantity"].dtype == "object":
+                temp_df["Quantity"] = temp_df["Quantity"].astype(str).str.replace(",", "", regex=False)
+            temp_df["Quantity"] = pd.to_numeric(temp_df["Quantity"], errors="coerce").fillna(0)
 
             # Handle Discount Amount
-            if "DISCOUNT AMOUNT" in self._df.columns:
-                if self._df["DISCOUNT AMOUNT"].dtype == "object":
-                    self._df["DISCOUNT AMOUNT"] = self._df["DISCOUNT AMOUNT"].astype(str).str.replace(",", "", regex=False)
-                self._df["DISCOUNT AMOUNT"] = pd.to_numeric(self._df["DISCOUNT AMOUNT"], errors="coerce").fillna(0)
+            if "DISCOUNT AMOUNT" in temp_df.columns:
+                if temp_df["DISCOUNT AMOUNT"].dtype == "object":
+                    temp_df["DISCOUNT AMOUNT"] = temp_df["DISCOUNT AMOUNT"].astype(str).str.replace(",", "", regex=False)
+                temp_df["DISCOUNT AMOUNT"] = pd.to_numeric(temp_df["DISCOUNT AMOUNT"], errors="coerce").fillna(0)
 
-            # Handle Date (19-04-2025 -> datetime -> YYYY-MM)
-            # Billing_Date holds the actual daily date
-            self._df["Billing_Date"] = pd.to_datetime(self._df["Billing_Date"], format="%d-%m-%Y", errors="coerce")
-            # Create Month_Date for grouping by period
-            self._df["Month_Date"] = self._df["Billing_Date"].dt.to_period("M").dt.to_timestamp()
-            self._df["Month_Label"] = self._df["Month_Date"].dt.strftime('%B-%Y')
+            # Handle Date
+            temp_df["Billing_Date"] = pd.to_datetime(temp_df["Billing_Date"], format="%d-%m-%Y", errors="coerce")
+            temp_df["Month_Date"] = temp_df["Billing_Date"].dt.to_period("M").dt.to_timestamp()
+            temp_df["Month_Label"] = temp_df["Month_Date"].dt.strftime('%B-%Y')
             
-            # Populate Filter Options (Categorical columns are now guaranteed strings)
-            self.months = sorted([m for m in self._df['Month_Label'].unique().tolist() if m is not None], key=lambda x: pd.to_datetime(x, format='%B-%Y', errors='coerce'))
-            self.states = sorted(self._df['CUSTOMER STATE'].unique().tolist())
-            self.brands = sorted(self._df['Brand'].unique().tolist())
-            self.channels = sorted(self._df['Channel'].unique().tolist())
-            if 'TYPE OF SUPPLY' in self._df.columns:
-                self.supply_types = sorted(self._df['TYPE OF SUPPLY'].unique().tolist())
+            # Populate Filter Options
+            self.months = sorted([m for m in temp_df['Month_Label'].unique().tolist() if m is not None], key=lambda x: pd.to_datetime(x, format='%B-%Y', errors='coerce'))
+            self.states = sorted(temp_df['CUSTOMER STATE'].unique().tolist())
+            self.brands = sorted(temp_df['Brand'].unique().tolist())
+            self.channels = sorted(temp_df['Channel'].unique().tolist())
+            if 'TYPE OF SUPPLY' in temp_df.columns:
+                self.supply_types = sorted(temp_df['TYPE OF SUPPLY'].unique().tolist())
             
             # Default Selections (All)
             self.selected_months = self.months
@@ -159,27 +214,87 @@ class State(rx.State):
             self.selected_brands = self.brands
             self.selected_channels = self.channels
             self.selected_supply_types = self.supply_types
-            
-        except Exception as e:
-            print(f"Error loading main sales data: {e}")
-            self.deployment_status += f" [Main Data Error: {str(e)}] "
 
-        # Load Courier Data (Independent of Sales Data)
-        try:
-            # Resolve path relative to this file, similar to Uoload_ecom_sale.xlsx
-            base_path = os.path.dirname(os.path.realpath(__file__))
-            courier_path = os.path.join(base_path, "..", "assets", "Courier_details.xlsx")
+            # ATOMIC UPDATE
+            self._df = temp_df
             
-            if os.path.exists(courier_path):
-                print(f"DEBUG: Found courier file at {courier_path}")
-                self._courier_df = pd.read_excel(courier_path)
-                print(f"DEBUG: Courier Data Loaded. Shape: {self._courier_df.shape}")
-            else:
-                print(f"DEBUG: Courier file NOT FOUND at: {courier_path}")
-                self.deployment_status += f" [Courier Error: File NOT FOUND at {courier_path}] "
         except Exception as e:
-            print(f"DEBUG: Error loading courier data details: {str(e)}")
-            self.deployment_status += f" [Courier Data Error: {str(e)}] "
+            print(f"Error processing sales data: {e}")
+            self.deployment_status += f" [Data Processing Error: {str(e)}] "
+            
+        except Exception as e:
+            print(f"Error processing sales data: {e}")
+            self.deployment_status += f" [Data Processing Error: {str(e)}] "
+
+    def process_courier_data(self, df: pd.DataFrame):
+        try:
+            temp_df = df.copy()
+            # Normalize columns to lowercase to ensure 'gross_amount' etc match
+            temp_df.columns = temp_df.columns.str.lower().str.strip()
+            
+            # VALIDATION: Check for expected courier columns
+            # Based on courier_metrics usage: gross_amount, waybill_num, fpd, pickup_date, status
+            required_cols = ["gross_amount", "waybill_num", "status"]
+            missing = [col for col in required_cols if col not in temp_df.columns]
+            
+            if missing:
+                 raise ValueError(f"Invalid Courier File. Missing columns: {missing}. Did you upload the Sales file by mistake?")
+            
+            # If any specific processing needed for courier, do it here on temp_df
+            self._courier_df = temp_df
+            print(f"DEBUG: Courier Data Processed. Shape: {self._courier_df.shape}")
+        except Exception as e:
+            print(f"DEBUG: Error processing courier data: {str(e)}")
+            self.deployment_status = f"Error: {str(e)}"
+
+    def close_upload_modal(self):
+        self.is_upload_modal_open = False
+        
+    # --- New Tabbed Workflow State ---
+    show_dashboard: bool = False
+    
+    def start_analysis(self):
+        """Switch to dashboard view."""
+        if not self.sales_data_uploaded:
+             self.deployment_status = "Please upload Sales Data before launching."
+             return
+        self.show_dashboard = True
+
+    @rx.var
+    def dashboard_title(self) -> str:
+        """Get dynamic dashboard title with date range."""
+        base_title = "📊 Interactive Sales Dashboard"
+        
+        if getattr(self, "_df", None) is None or self._df.empty:
+            return base_title
+            
+        try:
+             # Ensure Billing_Date is datetime
+             df = self._df.copy()
+             if not pd.api.types.is_datetime64_any_dtype(df["Billing_Date"]):
+                 df["Billing_Date"] = pd.to_datetime(df["Billing_Date"], errors="coerce")
+             
+             min_date = df["Billing_Date"].min()
+             max_date = df["Billing_Date"].max()
+             
+             if pd.isnull(min_date) or pd.isnull(max_date):
+                 return base_title
+                 
+             # Format: April'25 - November'25
+             start_str = min_date.strftime("%B'%y")
+             end_str = max_date.strftime("%B'%y")
+             
+             return f"{base_title} ({start_str} - {end_str})"
+        except Exception:
+            return base_title
+
+
+    def load_data(self):
+        """Legacy load_data - now just internal cleanup or optional pre-load if needed."""
+        # We don't auto-load from disk anymore as per requirement.
+        # But we initialize empty
+        pass
+
 
     @rx.var
     def courier_metrics(self) -> dict:
@@ -1874,42 +1989,275 @@ def courier_performance_card():
         border="1px solid #4A5568"
     )
 
-def index() -> rx.Component:
-    return rx.flex(
-        # Sidebar
-        sidebar_component(),
-        
-        # Main Content
-        rx.box(
-            rx.container(
-                rx.vstack(
-                    rx.hstack(
-                        rx.button(
-                            "☰ Filters", 
-                            on_click=State.toggle_sidebar, 
-                            color_scheme="gray", 
-                            variant="outline",
-                            size="2"
+
+
+
+
+def no_data_view() -> rx.Component:
+    """The empty state view shown when no data is loaded."""
+    return rx.center(
+        rx.vstack(
+            rx.heading("Upload Your Data", size="8", color="#1A202C", margin_bottom="8px"),
+            rx.text(
+                "Follow the steps to upload Sales and Courier data.",
+                color="#718096",
+                font_size="16px",
+                margin_bottom="32px",
+            ),
+            
+            rx.tabs.root(
+                rx.tabs.list(
+                    rx.tabs.trigger(
+                        rx.hstack(
+                            rx.icon("file-spreadsheet", size=24), 
+                            rx.text("1. Sales Data", font_size="20px", weight="bold"),
+                            spacing="3",
+                            align="center",
                         ),
-                        rx.heading("📊 Interactive Sales Dashboard", size="8", color=TEXT_COLOR),
-                        align="center",
-                        margin_bottom="6"
+                        value="sales", 
+                        color="#1A202C",
+                        padding_x="32px",
+                        padding_y="16px",
                     ),
-                    
-                    # Deployment / Debug Banner
-                    rx.cond(
-                        State.deployment_status != "",
+                    rx.tabs.trigger(
+                        rx.hstack(
+                            rx.icon("truck", size=24), 
+                            rx.text("2. Courier Data", font_size="20px", weight="bold"),
+                            spacing="3",
+                            align="center",
+                        ),
+                        value="courier", 
+                        color="#1A202C",
+                        padding_x="32px",
+                        padding_y="16px",
+                    ),
+                    rx.tabs.trigger(
+                        rx.hstack(
+                            rx.icon("bar-chart-2", size=24), 
+                            rx.text("3. Analyze", font_size="20px", weight="bold"),
+                            spacing="3",
+                            align="center",
+                        ),
+                        value="analyze", 
+                        color="#1A202C",
+                        padding_x="32px",
+                        padding_y="16px",
+                    ),
+                    justify="center", # Center the tabs
+                    spacing="8", # Substantial space between tabs
+                    margin_bottom="32px",
+                ),
+                
+                # TAB 1: SALES DATA
+                rx.tabs.content(
+                    rx.vstack(
                         rx.box(
-                            rx.text(State.deployment_status, font_weight="bold"),
-                            bg="red",
-                            color="white",
-                            padding="4",
-                            border_radius="md",
-                            margin_bottom="4",
-                            width="100%"
+                            rx.vstack(
+                                rx.icon("file-spreadsheet", size=32, color="#5B45FF"),
+                                rx.text("Upload Sales Data Excel File", weight="bold", size="4", color="#1A202C"),
+                                rx.text("Required for dashboard visualization", size="2", color="#718096"),
+                                rx.cond(
+                                    State.sales_data_uploaded,
+                                    rx.badge("✅ File Uploaded Successfully", color_scheme="green", variant="solid", size="3"),
+                                    rx.fragment()
+                                ),
+                                rx.upload(
+                                     rx.button(
+                                        "Select Sales File",
+                                        size="3",
+                                        variant="solid", # Solid for better visibility on white
+                                        color_scheme="indigo",
+                                        width="100%",
+                                    ),
+                                    id="sales_tab_upload",
+                                    accept={
+                                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"], 
+                                        "application/vnd.ms-excel": [".xls"]
+                                    },
+                                    max_files=1,
+                                    on_drop=State.handle_sales_upload,
+                                    border="1px dashed #CBD5E0",
+                                    padding="32px",
+                                    border_radius="lg",
+                                    width="100%",
+                                ),
+                                spacing="4",
+                                align="center",
+                            ),
+                            padding="32px",
+                            bg="#F7FAFC",
+                            border_radius="xl",
+                            width="100%",
+                            border="1px solid #E2E8F0", # Add border for definition
                         ),
-                        rx.fragment()
                     ),
+                    value="sales",
+                    padding="24px",
+                ),
+                
+                # TAB 2: COURIER DATA
+                rx.tabs.content(
+                    rx.vstack(
+                        rx.box(
+                            rx.vstack(
+                                rx.icon("truck", size=32, color="#3182CE"),
+                                rx.text("Upload Courier Data Excel File", weight="bold", size="4", color="#1A202C"),
+                                rx.text("Required for courier performance metrics", size="2", color="#718096"),
+                                rx.cond(
+                                    State.courier_data_uploaded,
+                                    rx.badge("✅ File Uploaded Successfully", color_scheme="green", variant="solid", size="3"),
+                                    rx.fragment()
+                                ),
+                                rx.upload(
+                                     rx.button(
+                                        "Select Courier File",
+                                        size="3",
+                                        variant="solid", # Solid
+                                        color_scheme="blue",
+                                        width="100%",
+                                    ),
+                                    id="courier_tab_upload",
+                                    accept={
+                                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"], 
+                                        "application/vnd.ms-excel": [".xls"]
+                                    },
+                                    max_files=1,
+                                    on_drop=State.handle_courier_upload,
+                                    border="1px dashed #CBD5E0",
+                                    padding="32px",
+                                    border_radius="lg",
+                                    width="100%",
+                                ),
+                                spacing="4",
+                                align="center",
+                            ),
+                            padding="32px",
+                            bg="#F7FAFC",
+                            border_radius="xl",
+                            width="100%",
+                            border="1px solid #E2E8F0",
+                        ),
+                    ),
+                    value="courier",
+                    padding="24px",
+                ),
+
+                # TAB 3: ANALYZE
+                rx.tabs.content(
+                     rx.vstack(
+                        rx.heading("Ready to Analyze?", size="6", color="#1A202C"),
+                        rx.box(
+                            rx.vstack(
+                                rx.hstack(
+                                    rx.text("Sales Data Status:", weight="bold", color="#1A202C"),
+                                    rx.cond(
+                                        State.sales_data_uploaded,
+                                        rx.badge("Ready", color_scheme="green", variant="solid"),
+                                        rx.badge("Missing", color_scheme="red", variant="solid"),
+                                    ),
+                                    justify="between",
+                                    width="100%",
+                                ),
+                                rx.hstack(
+                                    rx.text("Courier Data Status:", weight="bold", color="#1A202C"),
+                                    rx.cond(
+                                        State.courier_data_uploaded,
+                                        rx.badge("Ready", color_scheme="green", variant="solid"),
+                                        rx.badge("Optional", color_scheme="gray", variant="solid"),
+                                    ),
+                                    justify="between",
+                                    width="100%",
+                                ),
+                                width="100%",
+                                spacing="4",
+                            ),
+                            padding="24px",
+                            bg="#F7FAFC",
+                            border_radius="lg",
+                            width="100%",
+                            border="1px solid #E2E8F0",
+                        ),
+                        rx.button(
+                            "Launch Dashboard 🚀", 
+                            on_click=State.start_analysis,
+                            size="4",
+                            width="100%",
+                            # disabled=~State.sales_data_uploaded, # Removed disabling to ensure visibility
+                            color_scheme="purple",
+                            variant="solid",
+                            opacity=rx.cond(State.sales_data_uploaded, "1", "0.5"), # Visual cue instead via opacity but completely visible
+                            cursor=rx.cond(State.sales_data_uploaded, "pointer", "not-allowed"),
+                        ),
+                        spacing="6",
+                        align="center",
+                        width="100%",
+                    ),
+                    value="analyze",
+                    padding="24px",
+                ),
+                
+                defaultValue="sales",
+                width="100%",
+            ),
+
+            # Error message
+            rx.cond(
+                State.deployment_status != "",
+                rx.center( # Wrap in center
+                    rx.callout.root(
+                        rx.callout.text(State.deployment_status),
+                        color_scheme="red",
+                        role="alert",
+                        margin_top="16px",
+                    ),
+                    width="100%", # Center needs width
+                ),
+            ),
+            align="center",
+            width="100%",
+            max_width="1000px", # Increased from 600px to accommodate large tabs
+        ),
+        width="100%",
+        height="100vh",
+        background_color="white", # Explicit white background, so we force dark text everywhere above
+    )
+
+
+
+
+
+def index() -> rx.Component:
+    return rx.cond(
+        # CONDITIONAL: Show No Data View if dashboard is not started
+        ~State.show_dashboard,
+        no_data_view(),
+        # ELSE: Show Main Dashboard
+        rx.flex(
+            # Sidebar
+            sidebar_component(),
+            
+            # Main Content
+            rx.box(
+                rx.container(
+                    rx.vstack(
+                        rx.hstack(
+                            rx.button(
+                                "☰ Filters", 
+                                on_click=State.toggle_sidebar, 
+                                color_scheme="gray", 
+                                variant="outline",
+                                size="2"
+                            ),
+                            rx.heading(State.dashboard_title, size="6", color=TEXT_COLOR),
+                            rx.spacer(),
+                            # Removed persistent upload buttons as per user request
+                            width="100%",
+                        ),
+                        # Status feedback for uploads is now shown in the no_data_view or a toast, 
+                        # but we can keep a subtle indicator if needed. For now, just removing the buttons.
+                        # AI Chat Interface      ),
+                        rx.fragment(),
+
                     
                     rx.box(
                         ai_chat_component(),
@@ -2220,21 +2568,24 @@ def index() -> rx.Component:
                     # ),
 
                     rx.box(height="40px"), # Bottom padding
-                ),
-                padding="6",
-                max_width="1600px", 
+                    ), 
+                    padding="6",
+                    max_width="1600px", 
+                ), 
+                bg=CONTENT_BG,
+                flex="1",
+                height="100vh",
+                overflow="auto",
             ),
-            bg=CONTENT_BG,
-            flex="1",
+            spacing="0",
+            flex_direction=["column", "row"],
             height="100vh",
-            overflow="auto",
-        ),
-        spacing="0",
-        flex_direction=["column", "row"],
-        height="100vh",
-        width="100vw",
-        on_mount=State.load_data,
+            width="100vw",
+            on_mount=State.load_data,
+        )
     )
+
+
 
 
 app = rx.App(
