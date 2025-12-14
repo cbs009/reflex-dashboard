@@ -3,17 +3,17 @@ import sys
 import os
 
 # --- STRICT VIRTUAL ENVIRONMENT ENFORCEMENT ---
-# This ensures the project only runs within the 'reflex_dashboard_virtual' environment.
-if "reflex_dashboard_virtual" not in sys.prefix:
-    print("\n" + "="*80)
-    print("❌ CRITICAL ERROR: VIRTUAL ENVIRONMENT MISMATCH")
-    print("="*80)
-    print(f"This project requires the 'reflex_dashboard_virtual' environment.")
-    print(f"Current detected environment: {sys.prefix}")
-    print("\nPlease activate the correct environment before running:")
-    print("   source reflex_dashboard_virtual/bin/activate")
-    print("="*80 + "\n")
-    sys.exit(1)
+# (DISABLED FOR DEPLOYMENT Compatibility)
+# if "reflex_dashboard_virtual" not in sys.prefix:
+#     print("\n" + "="*80)
+#     print("❌ CRITICAL ERROR: VIRTUAL ENVIRONMENT MISMATCH")
+#     print("="*80)
+#     print(f"This project requires the 'reflex_dashboard_virtual' environment.")
+#     print(f"Current detected environment: {sys.prefix}")
+#     print("\nPlease activate the correct environment before running:")
+#     print("   source reflex_dashboard_virtual/bin/activate")
+#     print("="*80 + "\n")
+#     sys.exit(1)
 # -----------------------------------------------
 
 import pandas as pd
@@ -31,6 +31,7 @@ class State(rx.State):
     """The app state."""
     # Raw Data
     _df: pd.DataFrame = pd.DataFrame()
+    _courier_df: pd.DataFrame = pd.DataFrame()
     
     # Filter Options
     months: list[str] = []
@@ -48,6 +49,9 @@ class State(rx.State):
     
     # Sidebar State
     is_sidebar_open: bool = True
+    
+    # Debug / Deployment Status
+    deployment_status: str = ""
 
     # Load data
 
@@ -58,6 +62,11 @@ class State(rx.State):
             base_path = os.path.dirname(os.path.realpath(__file__))
             file_path = os.path.join(base_path, "..", "assets", "Uoload_ecom_sale.xlsx")
             print(f"Loading data from: {file_path}")
+            
+            if not os.path.exists(file_path):
+                 self.deployment_status += f" [Error: Main File NOT FOUND at {file_path}] "
+                 print(f"Error: File not found at {file_path}")
+            
             self._df = pd.read_excel(file_path)
             print(f"Data loaded. Rows: {len(self._df)}")
             
@@ -104,7 +113,7 @@ class State(rx.State):
                             v_upper = val.upper()
                             if "AMAZON" in v_upper: return "Amazon"
                             if "FLIPKART" in v_upper: return "Flipkart"
-                            if "RCLUN" in v_upper: return "rclun.in"
+                            if "RCLUB" in v_upper: return "rclub.in"
                             # Check for Business Club specifically first (as it might contain Rajnigandha in full name)
                             if "BUSINESS CLUB" in v_upper: return "Rajnigandha Business Club" 
                             if "RAJNIGANDHA" in v_upper: return "rajnigandha.com"
@@ -152,7 +161,77 @@ class State(rx.State):
             self.selected_supply_types = self.supply_types
             
         except Exception as e:
-            print(f"Error loading data: {e}")
+            print(f"Error loading main sales data: {e}")
+            self.deployment_status += f" [Main Data Error: {str(e)}] "
+
+        # Load Courier Data (Independent of Sales Data)
+        try:
+            # Resolve path relative to this file, similar to Uoload_ecom_sale.xlsx
+            base_path = os.path.dirname(os.path.realpath(__file__))
+            courier_path = os.path.join(base_path, "..", "assets", "Courier_details.xlsx")
+            
+            if os.path.exists(courier_path):
+                print(f"DEBUG: Found courier file at {courier_path}")
+                self._courier_df = pd.read_excel(courier_path)
+                print(f"DEBUG: Courier Data Loaded. Shape: {self._courier_df.shape}")
+            else:
+                print(f"DEBUG: Courier file NOT FOUND at: {courier_path}")
+                self.deployment_status += f" [Courier Error: File NOT FOUND at {courier_path}] "
+        except Exception as e:
+            print(f"DEBUG: Error loading courier data details: {str(e)}")
+            self.deployment_status += f" [Courier Data Error: {str(e)}] "
+
+    @rx.var
+    def courier_metrics(self) -> dict:
+        """Calculates performance metrics for Courier Service."""
+        if getattr(self, "_courier_df", None) is None or self._courier_df.empty:
+            return {
+                "avg_cost": "₹0.0",
+                "avg_time": "0.0 days",
+                "success_rate": "0.0%",
+                "return_rate": "0.0%"
+            }
+            
+        df = self._courier_df.copy()
+        
+        # 1. Avg Delivery Cost = sum of gross_amount divided by count of waybill_num
+        total_gross = df["gross_amount"].sum()
+        total_waybills = df["waybill_num"].nunique() # Using nunique to be safe, or just len(df) if unique
+        avg_cost = divmod(total_gross, total_waybills)[0] + (total_gross / total_waybills % 1) if total_waybills > 0 else 0
+        avg_cost = total_gross / total_waybills if total_waybills > 0 else 0
+        
+        # 2. Avg Delivery Time = fpd - pickup_date
+        # Only where fpd is present (implies delivered or attempted)
+        time_df = df.dropna(subset=["fpd", "pickup_date"]).copy()
+        avg_time = 0
+        if not time_df.empty:
+            # Ensure datetime
+            time_df["pickup_date"] = pd.to_datetime(time_df["pickup_date"])
+            time_df["fpd"] = pd.to_datetime(time_df["fpd"])
+            
+            # Calculate duration in days
+            # User formula: fpd - pickup_date
+            duration = (time_df["fpd"] - time_df["pickup_date"]).dt.total_seconds() / (24 * 3600)
+            avg_time = duration.mean()
+            
+        # 3. Successful Delivery Rate = (Number of Successful Deliveries / Total Number of Deliveries) × 100%
+        # Successful = status 'Delivered'
+        # Total = Total rows
+        total_orders = len(df)
+        success_count = len(df[df["status"] == "Delivered"])
+        success_rate = (success_count / total_orders * 100) if total_orders > 0 else 0
+        
+        # 4. Return Rate = (Number of courier Returned / Total Number of courier) x 100
+        # Returned = status 'RTO'
+        bfs_count = len(df[df["status"] == "RTO"]) 
+        return_rate = (bfs_count / total_orders * 100) if total_orders > 0 else 0
+
+        return {
+            "avg_cost": f"₹{avg_cost:.1f}",
+            "avg_time": f"{avg_time:.1f} days",
+            "success_rate": f"{success_rate:.1f}%",
+            "return_rate": f"{return_rate:.1f}%"
+        }
 
     @rx.var
     def filtered_df(self) -> pd.DataFrame:
@@ -1683,6 +1762,118 @@ def card_pareto():
         box_shadow="lg"
     )
 
+
+def courier_performance_card():
+    return rx.box(
+        rx.vstack(
+            rx.center(
+                rx.hstack(
+                    rx.center(
+                        rx.icon("truck", color="#3182CE", size=20),
+                        bg="#EBF8FF", # Light blue bg for icon
+                        padding="2",
+                        border_radius="md"
+                    ),
+                    rx.text("Courier Performance(Only for Rajnigandha.com)", font_weight="bold", color=TEXT_COLOR, font_size="md"),
+                    align="center",
+                    spacing="3",
+                ),
+                width="100%",
+                margin_bottom="4"
+            ),
+            rx.grid(
+                # Card 1: Avg Delivery Cost
+                rx.box(
+                    rx.vstack(
+                        rx.hstack(
+                            rx.icon("indian-rupee", size=14, color="gray"),
+                            rx.text("AVG DELIVERY COST", font_size="xs", font_weight="bold", color="gray.400"),
+                            spacing="2",
+                            align="center"
+                        ),
+                        rx.heading(State.courier_metrics["avg_cost"], size="6", color=TEXT_COLOR, font_weight="bold"),
+                        rx.text("per shipment", font_size="xs", color="gray.500"),
+                        spacing="1",
+                        align_items="center"
+                    ),
+                    bg="rgba(255,255,255,0.03)", 
+                    padding="4", 
+                    border_radius="lg",
+                    width="100%"
+                ),
+                # Card 2: Avg Delivery Time
+                rx.box(
+                     rx.vstack(
+                        rx.hstack(
+                            rx.icon("clock", size=14, color="gray"),
+                            rx.text("AVERAGE DELIVERY TIME", font_size="xs", font_weight="bold", color="gray.400"),
+                            spacing="2",
+                            align="center"
+                        ),
+                        rx.heading(State.courier_metrics["avg_time"], size="6", color=TEXT_COLOR, font_weight="bold"),
+                        rx.text("pickup to delivered", font_size="xs", color="gray.500"),
+                        spacing="1",
+                        align_items="center"
+                    ),
+                    bg="rgba(255,255,255,0.03)", 
+                    padding="4", 
+                    border_radius="lg",
+                     width="100%"
+                ),
+                # Card 3: Successful Delivery Rate (Green)
+                rx.box(
+                     rx.vstack(
+                        rx.hstack(
+                            rx.icon("circle_check", size=14, color="green"),
+                            rx.text("SUCCESSFUL DELIVERY RATE", font_size="xs", font_weight="bold", color="green"),
+                            spacing="2",
+                            align="center"
+                        ),
+                        rx.heading(State.courier_metrics["success_rate"], size="6", color="#047857", font_weight="bold"), # Darker green text
+                        rx.text("delivery rate", font_size="xs", color="green"),
+                        spacing="1",
+                        align_items="center"
+                    ),
+                    bg="#F0FFF4", # Light Green (Mint)
+                    padding="4", 
+                    border_radius="lg",
+                    border="1px solid #C6F6D5",
+                     width="100%"
+                ),
+                # Card 4: Return Rate (Red)
+                 rx.box(
+                     rx.vstack(
+                        rx.hstack(
+                            rx.icon("rotate_cw", size=14, color="red"),
+                            rx.text("RETURN RATE", font_size="xs", font_weight="bold", color="red"),
+                            spacing="2",
+                            align="center"
+                        ),
+                        rx.heading(State.courier_metrics["return_rate"], size="6", color="#C53030", font_weight="bold"), # Darker red text
+                        rx.text("of total orders", font_size="xs", color="red"),
+                        spacing="1",
+                        align_items="center"
+                    ),
+                    bg="#FFF5F7", # Pinkish (Lavender Blush)
+                    padding="4", 
+                    border_radius="lg",
+                    border="1px solid #FED7E2",
+                     width="100%"
+                ),
+                columns={"initial": "1", "sm": "1", "lg": "2"},
+                spacing="4",
+                width="100%"
+            ),
+             width="100%"
+        ),
+        bg=CARD_BG,
+        padding="24px", # Explicit padding to match other cards
+        border_radius="xl",
+        box_shadow="lg",
+        width="100%",
+        border="1px solid #4A5568"
+    )
+
 def index() -> rx.Component:
     return rx.flex(
         # Sidebar
@@ -1703,6 +1894,21 @@ def index() -> rx.Component:
                         rx.heading("📊 Interactive Sales Dashboard", size="8", color=TEXT_COLOR),
                         align="center",
                         margin_bottom="6"
+                    ),
+                    
+                    # Deployment / Debug Banner
+                    rx.cond(
+                        State.deployment_status != "",
+                        rx.box(
+                            rx.text(State.deployment_status, font_weight="bold"),
+                            bg="red",
+                            color="white",
+                            padding="4",
+                            border_radius="md",
+                            margin_bottom="4",
+                            width="100%"
+                        ),
+                        rx.fragment()
                     ),
                     
                     rx.box(
@@ -1741,6 +1947,9 @@ def index() -> rx.Component:
                             spacing="4",
                             width="100%"
                         ),
+                        
+                        # Courier Performance Card
+                        courier_performance_card(),
 
                         spacing="4",
                         width="100%",
