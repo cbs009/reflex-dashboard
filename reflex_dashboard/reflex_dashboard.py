@@ -18,6 +18,8 @@ import os
 
 import pandas as pd
 import os
+import datetime
+import calendar
 import google.generativeai as genai
 from typing import List, Dict, Any
 import plotly.express as px
@@ -26,6 +28,40 @@ import plotly.graph_objects as go
 # --- Configuration ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") 
 from rxconfig import config
+
+class MonthlyValue(rx.Base):
+    month: str
+    value: str
+    is_shaded: bool = False
+
+class StateSummary(rx.Base):
+    state: str
+    monthly_values: list[MonthlyValue]
+    total_value: str
+
+class ChannelSummary(rx.Base):
+    channel: str
+    monthly_values: list[MonthlyValue]
+    total_value: str
+    children: list[StateSummary]
+    is_total: bool = False
+
+class InvRetChannel(rx.Base):
+    channel: str
+    inv: str = "-"
+    ret: str = "-"
+    ret_color: str = "black"
+    val: str = "" # For pct row
+    color: str = ""
+
+class InvRetRow(rx.Base):
+    month: str
+    channels: list[InvRetChannel]
+    grand_total_inv: str = "-"
+    grand_total_ret: str = "-"
+    grand_total_val: str = "" # For pct row
+    is_pct: bool = False
+    is_total: bool = False
 
 class State(rx.State):
     """The app state."""
@@ -47,8 +83,152 @@ class State(rx.State):
     selected_channels: list[str] = []
     selected_supply_types: list[str] = []
     
+    # Date Range Filter
+    start_date: str = ""
+    end_date: str = ""
+
+    def set_start_date(self, val: str):
+        self.start_date = val
+        
+    def set_end_date(self, val: str):
+        self.end_date = val
+
+    # --- Custom Date Picker State ---
+    show_picker: bool = False
+    picker_target: str = "start" # "start" or "end"
+    picker_view_date: str = "" # The month we are looking at
+    picker_temp_date: str = "" # The date currently selected in the picker (before OK)
+
+    def open_picker(self, target: str):
+        self.picker_target = target
+        current_val = self.start_date if target == "start" else self.end_date
+        
+        today_str = datetime.date.today().strftime("%Y-%m-%d")
+        
+        if current_val:
+            self.picker_view_date = current_val
+            self.picker_temp_date = current_val
+        else:
+            self.picker_view_date = today_str
+            self.picker_temp_date = today_str
+            
+        self.show_picker = True
+
+    def close_picker(self):
+        self.show_picker = False
+
+    def picker_prev_month(self):
+        try:
+            dt = datetime.datetime.strptime(self.picker_view_date, "%Y-%m-%d")
+            first = dt.replace(day=1)
+            prev = first - datetime.timedelta(days=1)
+            self.picker_view_date = prev.strftime("%Y-%m-%d")
+        except:
+             pass
+
+    def picker_next_month(self):
+        try:
+            dt = datetime.datetime.strptime(self.picker_view_date, "%Y-%m-%d")
+            days_in_month = calendar.monthrange(dt.year, dt.month)[1]
+            next_month = dt + datetime.timedelta(days=days_in_month)
+            self.picker_view_date = next_month.replace(day=1).strftime("%Y-%m-%d")
+        except:
+            pass
+    
+    def picker_select_date(self, date_str: str):
+        self.picker_temp_date = date_str
+
+    def picker_confirm(self):
+        if self.picker_target == "start":
+            self.set_start_date(self.picker_temp_date)
+        else:
+            self.set_end_date(self.picker_temp_date)
+        self.show_picker = False
+
+    @rx.var
+    def picker_calendar_grid(self) -> list[dict]:
+        """Returns the grid for the current view month."""
+        if not self.picker_view_date: return []
+        try:
+            dt = datetime.datetime.strptime(self.picker_view_date, "%Y-%m-%d")
+            year = dt.year
+            month = dt.month
+            
+            c = calendar.Calendar(firstweekday=6) # Sunday start
+            
+            grid = []
+            for date_obj in c.itermonthdates(year, month):
+                is_current_month = (date_obj.month == month)
+                date_str = date_obj.strftime("%Y-%m-%d")
+                
+                # Check strict equality for today and selected
+                # We return simple types
+                grid.append({
+                    "day": date_obj.day,
+                    "date_str": date_str,
+                    "is_current_month": is_current_month,
+                    "is_selected": (date_str == self.picker_temp_date),
+                    # "is_today": (date_str == datetime.date.today().strftime("%Y-%m-%d")) # Optional
+                })
+                
+            return grid
+        except:
+            return []
+        
+    @rx.var
+    def picker_display_year(self) -> str:
+        if not self.picker_temp_date: return ""
+        try:
+            return datetime.datetime.strptime(self.picker_temp_date, "%Y-%m-%d").strftime("%Y") 
+        except:
+            return ""
+
+    @rx.var
+    def picker_display_date_formatted(self) -> str:
+        if not self.picker_temp_date: return "Select date"
+        try:
+             # Keep this for compatibility if used elsewhere, but we primarily use the split ones below
+            return datetime.datetime.strptime(self.picker_temp_date, "%Y-%m-%d").strftime("%a, %b %d")
+        except:
+            return "Select date"
+
+    @rx.var
+    def picker_display_weekday(self) -> str:
+        if not self.picker_temp_date: return ""
+        try:
+            return datetime.datetime.strptime(self.picker_temp_date, "%Y-%m-%d").strftime("%A")
+        except:
+            return ""
+
+    @rx.var
+    def picker_display_day(self) -> str:
+        if not self.picker_temp_date: return ""
+        try:
+            return datetime.datetime.strptime(self.picker_temp_date, "%Y-%m-%d").strftime("%d")
+        except:
+            return ""
+
+    @rx.var
+    def picker_display_month(self) -> str:
+        if not self.picker_temp_date: return ""
+        try:
+            return datetime.datetime.strptime(self.picker_temp_date, "%Y-%m-%d").strftime("%B")
+        except:
+            return ""
+
+    @rx.var
+    def picker_month_year_title(self) -> str:
+        if not self.picker_view_date: return ""
+        try:
+            return datetime.datetime.strptime(self.picker_view_date, "%Y-%m-%d").strftime("%B %Y")
+        except:
+            return ""
+    
     # Sidebar State
     is_sidebar_open: bool = True
+
+    def toggle_sidebar(self):
+        self.is_sidebar_open = not self.is_sidebar_open
     
     # Debug / Deployment Status
     deployment_status: str = ""
@@ -209,11 +389,22 @@ class State(rx.State):
                 self.supply_types = sorted(temp_df['TYPE OF SUPPLY'].unique().tolist())
             
             # Default Selections (All)
+            # Default Selections (All)
             self.selected_months = self.months
             self.selected_states = self.states
             self.selected_brands = self.brands
             self.selected_channels = self.channels
             self.selected_supply_types = self.supply_types
+            
+            # Date Range Initialization
+            if not temp_df["Billing_Date"].isnull().all():
+                 min_d = temp_df["Billing_Date"].min()
+                 max_d = temp_df["Billing_Date"].max()
+                 self.start_date = min_d.strftime("%Y-%m-%d")
+                 self.end_date = max_d.strftime("%Y-%m-%d")
+            else:
+                 self.start_date = ""
+                 self.end_date = ""
 
             # ATOMIC UPDATE
             self._df = temp_df
@@ -354,12 +545,20 @@ class State(rx.State):
             return pd.DataFrame()
         
         # Apply Filters
-        df = self._df[
-            (self._df['Month_Label'].isin(self.selected_months)) &
+        # Apply Filters
+        # Ensure Billing_Date is datetime for comparison
+        # We rely on Billing_Date being correctly set in process_sales_data
+        
+        mask = (
             (self._df['CUSTOMER STATE'].isin(self.selected_states)) &
             (self._df['Brand'].isin(self.selected_brands)) &
             (self._df['Channel'].isin(self.selected_channels))
-        ]
+        )
+        
+        if self.start_date and self.end_date:
+             mask = mask & (self._df['Billing_Date'] >= self.start_date) & (self._df['Billing_Date'] <= self.end_date)
+             
+        df = self._df[mask]
         
         if self.selected_supply_types and 'TYPE OF SUPPLY' in df.columns:
              df = df[df['TYPE OF SUPPLY'].isin(self.selected_supply_types)]
@@ -822,6 +1021,7 @@ class State(rx.State):
         ))
 
         fig.update_layout(
+            height=400, # Explicit height override
             paper_bgcolor=CARD_BG,
             plot_bgcolor=CARD_BG,
             font_color=TEXT_COLOR,
@@ -880,6 +1080,7 @@ class State(rx.State):
         )
         
         fig.update_layout(
+            height=580, # Explicit height override
             paper_bgcolor=CARD_BG,
             plot_bgcolor=CARD_BG,
             font_color=TEXT_COLOR,
@@ -922,6 +1123,7 @@ class State(rx.State):
             direction='clockwise'
         )
         fig.update_layout(
+            height=580, # Explicit height override
             paper_bgcolor=CARD_BG,
             plot_bgcolor=CARD_BG,
             font_color=TEXT_COLOR,
@@ -956,6 +1158,7 @@ class State(rx.State):
             sort=True
         )
         fig.update_layout(
+            height=580, # Explicit height override
             paper_bgcolor=CARD_BG,
             plot_bgcolor=CARD_BG,
             font_color=TEXT_COLOR,
@@ -1229,6 +1432,459 @@ class State(rx.State):
         avg = total_sales / unique_months
         return f"₹{avg:,.2f} Cr"
 
+    @rx.var
+    def monthly_summary_data(self) -> list[ChannelSummary]:
+        """
+        Data for Monthly Summary of Gross Sale Value (Channel wise) Table.
+        """
+        if self.filtered_df.empty:
+            return []
+
+        df = self.filtered_df.copy()
+        
+        # Ensure Month_Date is present
+        if "Month_Date" not in df.columns:
+            return []
+
+        # Get all unique months sorted for columns
+        months = sorted(df["Month_Date"].unique())
+        # labels logic removed as it's not used inside the loops effectively, handled inside fmt/loops
+
+        # Helper to format value
+        def fmt(val):
+            return f"₹{val/10000000:.2f} Cr"
+
+        # 1. Group by Channel
+        channels = df["Channel"].unique()
+        summary_data = []
+        
+        # Pre-initialize grand total monthly sums
+        gt_monthly_sums = {m: 0.0 for m in months}
+
+        for channel in channels:
+            # Filter for this channel
+            ch_df = df[df["Channel"] == channel]
+            ch_total = ch_df["Sales Amount"].sum()
+            
+            # Channel Monthly Totals
+            ch_monthly_grp = ch_df.groupby("Month_Date")["Sales Amount"].sum()
+            ch_monthly_values = []
+            for i, m in enumerate(months):
+                val = ch_monthly_grp.get(m, 0.0)
+                is_shade_col = (i % 2 == 0) # Shade even indices (Apr, Jun, etc.)
+                ch_monthly_values.append(
+                    MonthlyValue(
+                        month=pd.Timestamp(m).strftime('%b -%Y'), 
+                        value=fmt(val),
+                        is_shaded=is_shade_col
+                    )
+                )
+                gt_monthly_sums[m] += val
+                
+            # 2. Process States for this Channel
+            state_grp = ch_df.groupby("CUSTOMER STATE")["Sales Amount"].sum().sort_values(ascending=False)
+            
+            top_5_states = state_grp.head(5)
+            other_states_val = state_grp.iloc[5:].sum() if len(state_grp) > 5 else 0
+            
+            children = []
+            
+            # Add Top 5
+            for state_name, state_total in top_5_states.items():
+                st_df = ch_df[ch_df["CUSTOMER STATE"] == state_name]
+                st_monthly_grp = st_df.groupby("Month_Date")["Sales Amount"].sum()
+                st_monthly_vals = []
+                for i, m in enumerate(months):
+                    val = st_monthly_grp.get(m, 0.0)
+                    is_shade_col = (i % 2 == 0)
+                    st_monthly_vals.append(
+                        MonthlyValue(
+                            month=pd.Timestamp(m).strftime('%b -%Y'), 
+                            value=fmt(val),
+                            is_shaded=is_shade_col
+                        )
+                    )
+                
+                children.append(
+                    StateSummary(
+                        state=str(state_name),
+                        monthly_values=st_monthly_vals,
+                        total_value=fmt(state_total)
+                    )
+                )
+                
+            # Add "Other States" if exists
+            if other_states_val > 0:
+                top_5_names = top_5_states.index.tolist()
+                others_df = ch_df[~ch_df["CUSTOMER STATE"].isin(top_5_names)]
+                
+                oth_monthly_grp = others_df.groupby("Month_Date")["Sales Amount"].sum()
+                oth_monthly_vals = []
+                for i, m in enumerate(months):
+                    val = oth_monthly_grp.get(m, 0.0)
+                    is_shade_col = (i % 2 == 0)
+                    oth_monthly_vals.append(
+                        MonthlyValue(
+                            month=pd.Timestamp(m).strftime('%b -%Y'), 
+                            value=fmt(val),
+                            is_shaded=is_shade_col
+                        )
+                    )
+
+                children.append(
+                    StateSummary(
+                        state="Other States",
+                        monthly_values=oth_monthly_vals,
+                        total_value=fmt(other_states_val)
+                    )
+                )
+            
+            summary_data.append(
+                ChannelSummary(
+                    channel=str(channel),
+                    monthly_values=ch_monthly_values,
+                    total_value=fmt(ch_total),
+                    children=children,
+                    is_total=False
+                )
+            )
+
+        # Finalize Grand Total Row
+        gt_vals = []
+        gt_total_all = 0
+        for i, m in enumerate(months):
+            val = gt_monthly_sums[m]
+            is_shade_col = (i % 2 == 0)
+            gt_vals.append(
+                MonthlyValue(
+                    month=pd.Timestamp(m).strftime('%b -%Y'), 
+                    value=fmt(val),
+                    is_shaded=is_shade_col
+                )
+            )
+            gt_total_all += val
+            
+        summary_data.append(
+             ChannelSummary(
+                channel="Grand Total",
+                monthly_values=gt_vals,
+                total_value=fmt(gt_total_all),
+                children=[],
+                is_total=True
+            )
+        )
+        
+        return summary_data
+
+
+        
+    @rx.var
+    def summary_table_columns(self) -> list[str]:
+        """Dynamic columns for the monthly summary table."""
+        if self.filtered_df.empty:
+            return []
+        months = sorted(self.filtered_df["Month_Date"].unique())
+        return [pd.Timestamp(m).strftime('%b -%Y') for m in months]
+
+    @rx.var
+    def monthly_sales_return_data(self) -> list[ChannelSummary]:
+        """
+        Data for Monthly Sales Return (Channel wise) Table.
+        Similar structure to monthly_summary_data but for 'Sales Return'.
+        """
+        if self.filtered_df.empty:
+            return []
+
+        df = self.filtered_df[self.filtered_df["DOCUMENT DESCRIPTION"] == "Sales Return"].copy()
+        
+        # Ensure Month_Date is present
+        if "Month_Date" not in self.filtered_df.columns: 
+             return []
+
+        # Get all unique months from the main filtered_df to ensure we show all months
+        months = sorted(self.filtered_df["Month_Date"].unique())
+        
+        # Helper to format value
+        def fmt(val):
+            # Format as absolute value with Indian numbering
+            # val is negative for returns, so abs(val)
+            s = str(int(abs(val)))
+            if len(s) <= 3:
+                res = s
+            else:
+                res = s[-3:]
+                s = s[:-3]
+                while len(s) > 2:
+                    res = s[-2:] + "," + res
+                    s = s[:-2]
+                res = s + "," + res
+            return f"₹{res}" 
+
+        channels = df["Channel"].unique() if not df.empty else []
+        
+        summary_data = []
+        gt_monthly_sums = {m: 0.0 for m in months}
+
+        for channel in channels:
+            ch_df = df[df["Channel"] == channel]
+            ch_total = ch_df["Sales Amount"].sum()
+            
+            ch_monthly_grp = ch_df.groupby("Month_Date")["Sales Amount"].sum()
+            ch_monthly_values = []
+            
+            for i, m in enumerate(months):
+                val = ch_monthly_grp.get(m, 0.0)
+                is_shade_col = (i % 2 == 0)
+                ch_monthly_values.append(
+                    MonthlyValue(
+                        month=pd.Timestamp(m).strftime('%b -%Y'), 
+                        value=fmt(val),
+                        is_shaded=is_shade_col
+                    )
+                )
+                gt_monthly_sums[m] += val
+            
+            summary_data.append(
+                ChannelSummary(
+                    channel=str(channel),
+                    monthly_values=ch_monthly_values,
+                    total_value=fmt(ch_total),
+                    children=[],
+                    is_total=False
+                )
+            )
+
+        # Finalize Grand Total Row
+        gt_vals = []
+        gt_total_all = 0
+        for i, m in enumerate(months):
+            val = gt_monthly_sums[m]
+            is_shade_col = (i % 2 == 0)
+            gt_vals.append(
+                MonthlyValue(
+                    month=pd.Timestamp(m).strftime('%b -%Y'), 
+                    value=fmt(val),
+                    is_shaded=is_shade_col
+                )
+            )
+            gt_total_all += val
+            
+        summary_data.append(
+             ChannelSummary(
+                channel="Total Returns", 
+                monthly_values=gt_vals,
+                total_value=fmt(gt_total_all),
+                children=[],
+                is_total=True
+            )
+        )
+        
+        return summary_data
+
+    @rx.var
+    def invoice_return_columns(self) -> list[str]:
+        if self.filtered_df.empty:
+            return []
+        # Get unique channels + Grand Total
+        channels = sorted(self.filtered_df["Channel"].unique().tolist())
+        return channels + ["Grand Total"]
+
+    @rx.var
+    def invoice_vs_return_data(self) -> list[InvRetRow]:
+        """
+        Data for Invoice vs Sales Return Table.
+        Row: Month
+        Cols: Channel (Inv, Ret), ... Grand Total
+        """
+        if self.filtered_df.empty:
+             return []
+
+        df = self.filtered_df.copy()
+        months = sorted(df["Month_Date"].unique())
+        channels = sorted(df["Channel"].unique().tolist())
+        
+        # Prepare Data
+        rows = []
+        
+        # Helper for totals
+        col_totals_inv = {c: 0 for c in channels}
+        col_totals_ret = {c: 0 for c in channels}
+        grand_total_inv_sum = 0
+        grand_total_ret_sum = 0
+
+        for m in months:
+            m_df = df[df["Month_Date"] == m]
+            month_label = pd.Timestamp(m).strftime('%b -%Y')
+            
+            channel_data = []
+            
+            row_total_inv = 0
+            row_total_ret = 0
+            
+            for ch in channels:
+                ch_data = m_df[m_df["Channel"] == ch]
+                
+                inv_count = ch_data[ch_data["DOCUMENT DESCRIPTION"] != "Sales Return"]["BILLING DOCUMENT"].nunique()
+                ret_count = ch_data[ch_data["DOCUMENT DESCRIPTION"] == "Sales Return"]["BILLING DOCUMENT"].nunique()
+                
+                # Update Column Totals
+                col_totals_inv[ch] += inv_count
+                col_totals_ret[ch] += ret_count
+                
+                # Update Row Totals
+                row_total_inv += inv_count
+                row_total_ret += ret_count
+                
+                ret_color = "red" if ret_count > 0 else "black"
+                
+                channel_data.append(
+                    InvRetChannel(
+                        channel=ch,
+                        inv=str(inv_count) if inv_count > 0 else "-",
+                        ret=str(ret_count) if ret_count > 0 else "-",
+                        ret_color=ret_color
+                    )
+                )
+            
+            grand_total_inv_sum += row_total_inv
+            grand_total_ret_sum += row_total_ret
+            
+            rows.append(
+                InvRetRow(
+                    month=month_label,
+                    channels=channel_data,
+                    grand_total_inv=str(row_total_inv),
+                    grand_total_ret=str(row_total_ret) if row_total_ret > 0 else "-"
+                )
+            )
+
+        # Totals Row
+        total_channels = []
+        for ch in channels:
+            total_channels.append(
+                InvRetChannel(
+                     channel=ch,
+                     inv=str(col_totals_inv[ch]),
+                     ret=str(col_totals_ret[ch]),
+                     ret_color="red"
+                )
+            )
+        
+        rows.append(
+            InvRetRow(
+                month="Total Count",
+                channels=total_channels,
+                grand_total_inv=str(grand_total_inv_sum),
+                grand_total_ret=str(grand_total_ret_sum),
+                is_total=True
+            )
+        )
+
+        # Percentage Row
+        pct_channels = []
+        for ch in channels:
+             inv = col_totals_inv[ch]
+             ret = col_totals_ret[ch]
+             pct = (ret / inv * 100) if inv > 0 else 0
+             pct_channels.append(
+                 InvRetChannel(
+                      channel=ch,
+                      val=f"{pct:.2f}%",
+                      color="green"
+                 )
+             )
+             
+        gt_pct = (grand_total_ret_sum / grand_total_inv_sum * 100) if grand_total_inv_sum > 0 else 0
+        
+        rows.append(
+            InvRetRow(
+                month="Return % (Ret/Inv)",
+                channels=pct_channels,
+                grand_total_val=f"{gt_pct:.2f}%",
+                is_pct=True
+            )
+        )
+        
+        return rows
+
+    @rx.var
+    def channel_sales_stats(self) -> list[dict]:
+        """Data for the custom legend of Channel Wise Sale."""
+        if self.filtered_df.empty:
+            return []
+        
+        df = self.filtered_df.copy()
+        grp = df.groupby("Channel")["Sales Amount"].sum().sort_values(ascending=False)
+        total = grp.sum()
+        
+        stats = []
+        # Colors matching the image roughly (Yellows, Greens, Blues, Purples)
+        # We can use a palette or hardcoded list.
+        # Let's use a nice palette.
+        palette = [
+            "#F6E05E", # Yellow
+            "#48BB78", # Green
+            "#4299E1", # Blue
+            "#ECC94B", # Darker Yellow
+            "#9F7AEA", # Purple
+            "#ED64A6", # Pink
+            "#F56565", # Red
+            "#A0AEC0", # Gray
+        ]
+        
+        for i, (channel, val) in enumerate(grp.items()):
+            color = palette[i % len(palette)]
+            pct = (val / total * 100) if total > 0 else 0
+            stats.append({
+                "channel": channel,
+                "value": f"₹{val/10000000:.2f} Cr",
+                "raw_value": val,
+                "pct": f"({pct:.1f}%)",
+                "color": color
+            })
+        return stats
+
+    @rx.var
+    def total_sales_formatted(self) -> str:
+        if self.filtered_df.empty: return "₹0.00 Cr"
+        val = self.filtered_df["Sales Amount"].sum()
+        return f"₹{val/10000000:.2f} Cr"
+
+    @rx.var
+    def channel_sales_chart(self) -> go.Figure:
+        """Donut chart for Channel Wise Sale."""
+        if self.filtered_df.empty:
+            return go.Figure()
+            
+        stats = self.channel_sales_stats
+        labels = [item["channel"] for item in stats]
+        values = [item["raw_value"] for item in stats]
+        colors = [item["color"] for item in stats]
+        
+        fig = go.Figure(data=[go.Pie(
+            labels=labels, 
+            values=values, 
+            hole=0.6,
+            marker=dict(colors=colors),
+            textinfo='none', # Turn off labels on chart as we have legend
+            hoverinfo='label+percent+value',
+            sort=False # Already sorted in stats
+        )])
+        
+        fig.update_layout(
+            showlegend=False, # Custom legend outside
+            margin=dict(t=0, b=0, l=0, r=0),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            height=580,
+            annotations=[
+                dict(text="Total Sales", x=0.5, y=0.55, font_size=12, showarrow=False, font_color="gray"),
+                dict(text=self.total_sales_formatted, x=0.5, y=0.45, font_size=25, font_weight="bold", showarrow=False, font_color="white") # Increased font size
+            ]
+        )
+        return fig
+
+
 # Styling Constants - Dark Mode
 # Styling Constants - Pitch Black Mode
 # Deep/Dark Palette for better white text contrast
@@ -1246,8 +1902,8 @@ def table_container(title, subtitle, bg_color, content, footer=None):
     return rx.box(
         rx.flex(
             rx.box(
-                rx.text(title, font_size="sm", font_weight="bold", color="white", text_align="center", width="100%"),
-                rx.text(subtitle, font_size="10px", color="gray.400", text_align="center", width="100%"),
+                rx.text(title, font_size="lg", font_weight="extrabold", color="white", text_align="center", width="100%"), # size md->lg, extra_bold->extrabold
+                rx.text(subtitle, font_size="sm", font_weight="bold", color="white", text_align="center", width="100%"), # size xs->sm, gray.200->white
                 width="100%",
             ),
             align="center",
@@ -1455,54 +2111,203 @@ def ai_chat_component():
         width="100%"
     )
 
+def date_picker_modal() -> rx.Component:
+    return rx.dialog.root(
+        rx.dialog.content(
+             rx.flex(
+                 # Left Panel (Header Display - Teal)
+                 rx.center(
+                     rx.vstack(
+                         rx.text(State.picker_display_weekday, color="white", font_size="sm", opacity=0.8, text_align="center", width="100%"),
+                         rx.text(State.picker_display_day, color="white", font_size="6xl", font_weight="bold", line_height="1", text_align="center", width="100%"), 
+                         rx.text(State.picker_display_month, color="white", font_size="2xl", font_weight="bold", text_align="center", width="100%"),
+                         rx.text(State.picker_display_year, color="white", font_size="2xl", opacity=0.7, text_align="center", width="100%"),
+                         
+                         spacing="1",
+                         align="center",
+                         justify="center",
+                         height="100%",
+                         width="100%"
+                     ),
+                     width="160px",
+                     bg="#009688", # Teal
+                     padding="4",
+                     height="100%",
+                 ),
+                 
+                 # Right Panel (Calendar - White)
+                 rx.vstack(
+                    # Header Month Year
+                    rx.hstack(
+                         rx.icon("chevron-left", on_click=State.picker_prev_month, cursor="pointer", color="black", size=18),
+                         rx.text(State.picker_month_year_title, color="black", font_size="sm", font_weight="bold"), 
+                         rx.icon("chevron-right", on_click=State.picker_next_month, cursor="pointer", color="black", size=18),
+                        width="100%",
+                        padding_x="4",
+                        padding_top="4",
+                        align="center",
+                        justify="between"
+                    ),
+                    
+                    # Weekday Headers
+                    rx.grid(
+                        *[rx.center(rx.text(day, color="#009688", font_size="xs", font_weight="bold")) for day in ["S", "M", "T", "W", "T", "F", "S"]],
+                        columns="7",
+                        width="100%",
+                        padding_x="4",
+                        margin_top="2"
+                    ),
+                    
+                    # Days Grid
+                    rx.grid(
+                        rx.foreach(
+                            State.picker_calendar_grid,
+                            lambda item: rx.center(
+                                    rx.text(
+                                    item["day"], 
+                                    font_size="sm",
+                                    color=rx.cond(item["is_selected"], "white", rx.cond(item["is_current_month"], "black", "gray.300")),
+                                    font_weight=rx.cond(item["is_selected"], "bold", "normal")
+                                ),
+                                bg=rx.cond(item["is_selected"], "#009688", "transparent"), # Teal selected
+                                border_radius="full", 
+                                width="30px",
+                                height="30px",
+                                cursor="pointer",
+                                _hover={"bg": rx.cond(item["is_selected"], "#009688", "gray.100")},
+                                on_click=lambda: State.picker_select_date(item["date_str"])
+                            )
+                        ),
+                        columns="7",
+                        width="100%",
+                        padding_x="4",
+                        row_gap="1"
+                    ),
+                    
+                    rx.spacer(),
+                    
+                    # Footer
+                    rx.hstack(
+                        rx.text("Clear", color="#E53E3E", font_size="xs", font_weight="bold", cursor="pointer"),
+                        rx.spacer(),
+                        rx.text("CANCEL", on_click=State.close_picker, color="#009688", font_size="xs", font_weight="bold", cursor="pointer"),
+                        rx.text("OK", on_click=State.picker_confirm, color="#009688", font_size="xs", font_weight="bold", cursor="pointer"),
+                        width="100%",
+                        justify="end",
+                        padding="4",
+                        spacing="4",
+                        align="center"
+                    ),
+                    
+                    bg="white", # White background for calendar
+                    width="280px",
+                    height="100%"
+                 ),
+                 
+                 height="350px",
+                 width="fit-content",
+                 overflow="hidden",
+                 border_radius="4px", # Slightly rounded
+             ),
+             bg="transparent", 
+             padding="0",
+             overflow="hidden",
+             max_width="none",
+             box_shadow="xl"
+        ),
+        open=State.show_picker,
+    )
+
 def sidebar_component() -> rx.Component:
     """The modern filter sidebar."""
     return rx.box(
         rx.vstack(
             rx.hstack(
-                rx.icon("filter", size=20, color=ACCENT_COLOR),
-                rx.heading("Filters", size="4", color="white"),
-                align="center", 
-                spacing="2",
+                rx.hstack(
+                    rx.icon("filter", size=20, color=ACCENT_COLOR),
+                    rx.heading("Filters", size="4", color="white"),
+                    align="center", 
+                    spacing="2",
+                ),
+                rx.spacer(),
+                rx.button(
+                     rx.icon("x", size=18, color="white"),
+                     variant="ghost",
+                     size="1", 
+                     on_click=State.toggle_sidebar,
+                     color_scheme="gray"
+                ),
+                width="100%",
+                align="center",
                 margin_bottom="6",
-                padding_left="2"
+                padding_left="2",
+                padding_right="2"
+            ),
+            
+            # Date Range Filter (Material Style)
+            rx.vstack(
+                rx.hstack(
+                    rx.icon("calendar", size=18, color="cyan"),
+                    rx.text("DATE RANGE", font_weight="bold", color="gray.300", font_size="sm"),
+                    align="center", spacing="2", width="100%"
+                ),
+                # Vertical Layout
+                rx.vstack(
+                    rx.box(
+                        rx.text("From", font_size="sm", color="gray.500", font_weight="bold", text_transform="uppercase", margin_bottom="1"),
+                        rx.box(
+                            rx.hstack(
+                                rx.icon("calendar", size=14, color="gray.400"),
+                                rx.text(rx.cond(State.start_date, State.start_date, "Select date"), color="white", font_size="sm"),
+                                spacing="2",
+                                align="center",
+                                justify="center", # Centered
+                                width="100%"
+                            ),
+                            bg="#1A202C", 
+                            border="1px solid #4A5568",
+                            border_radius="md",
+                            padding="3",
+                            width="100%",
+                            cursor="pointer",
+                            on_click=lambda: State.open_picker("start"),
+                            _hover={"border_color": "cyan", "bg": "#2D3748"}, # enhanced hover
+                            transition="all 0.2s"
+                        ),
+                        width="100%"
+                    ),
+                    rx.box(
+                        rx.text("To", font_size="sm", color="gray.500", font_weight="bold", text_transform="uppercase", margin_bottom="1"),
+                        rx.box(
+                             rx.hstack(
+                                rx.icon("calendar", size=14, color="gray.400"),
+                                rx.text(rx.cond(State.end_date, State.end_date, "Select date"), color="white", font_size="sm"),
+                                spacing="2",
+                                align="center",
+                                justify="center", # Centered
+                                width="100%"
+                             ),
+                            bg="#1A202C",
+                            border="1px solid #4A5568",
+                            border_radius="md",
+                            padding="3",
+                            width="100%",
+                            cursor="pointer",
+                             on_click=lambda: State.open_picker("end"),
+                             _hover={"border_color": "cyan", "bg": "#2D3748"},
+                             transition="all 0.2s"
+                        ),
+                        width="100%"
+                    ),
+                    width="100%",
+                    spacing="3" 
+                ),
+                padding="0", 
+                width="100%",
+                margin_bottom="6" 
             ),
             
             rx.accordion.root(
-                # Month Filter
-                rx.accordion.item(
-                    header=rx.hstack(
-                        rx.icon("calendar", size=18, color="cyan"),
-                        rx.text("MONTH", font_weight="bold", color="gray.300", font_size="sm"),
-                        align="center", spacing="2"
-                    ),
-                    content=rx.vstack(
-                        rx.checkbox("Select All", on_change=State.toggle_all_months, color_scheme="cyan", size="1"),
-                        rx.scroll_area(
-                            rx.vstack(
-                                rx.foreach(
-                                    State.months,
-                                    lambda month: rx.checkbox(
-                                        month,
-                                        checked=State.selected_months.contains(month),
-                                        on_change=lambda checked: State.toggle_month(month, checked),
-                                        color_scheme="cyan",
-                                        size="1"
-                                    ),
-                                ),
-                                direction="column",
-                                spacing="2",
-                            ),
-                            max_height="200px",
-                            type="always",
-                            scrollbars="vertical",
-                        ),
-                        spacing="2",
-                        padding_left="2"
-                    ),
-                    value="month",
-                    style={"_hover": {"bg": "rgba(255,255,255,0.02)"}}
-                ),
                 
                 # State Filter
                 rx.accordion.item(
@@ -2226,6 +3031,141 @@ def no_data_view() -> rx.Component:
 
 
 
+
+def monthly_summary_table():
+    return rx.box(
+        # Custom Header for this specific table to match the colorful request
+        rx.flex(
+            rx.box(
+                rx.text("Monthly Summary of Gross Sale Value (Channel wise)", font_size="md", font_weight="bold", color="white", text_align="center", width="100%"),
+                rx.text("Breakdown by Channel and Top 5 States", font_size="10px", color="gray.200", text_align="center", width="100%"),
+                width="100%",
+            ),
+            align="center",
+            justify="center",
+            padding="4",
+            bg="linear-gradient(90deg, #2D3748 0%, #4A5568 100%)", # Colorful gradient header
+            border_top_left_radius="xl",
+            border_top_right_radius="xl",
+            border_bottom="1px solid #4A5568",
+        ),
+        
+        rx.box(
+            # HEADER
+            rx.flex(
+                rx.box(rx.text("Channel / State", font_weight="bold", color="#63B3ED", font_size="sm"), width="300px", padding_left="4"), # Light Blue
+                rx.foreach(
+                    State.summary_table_columns,
+                    lambda col: rx.box(rx.text(col, font_weight="bold", color="#63B3ED", font_size="sm", text_align="right"), flex="1", padding_right="4") # Light Blue
+                ),
+                rx.box(rx.text("Grand Total", font_weight="bold", color="#ECC94B", font_size="sm", text_align="right"), width="150px", padding_right="4"), # Yellow
+                bg="#1A202C", 
+                padding_y="4", 
+                border_bottom="1px solid #4A5568",
+                width="100%",
+                align="center"
+            ),
+            
+            # BODY
+            rx.vstack(
+                rx.foreach(
+                    State.monthly_summary_data,
+                    lambda row: rx.box(
+                        # Conditional: Grand Total Row vs Channel Row
+                        rx.cond(
+                            row["is_total"],
+                            # Grand Total Row Style (Fixed Footer-like)
+                             rx.flex(
+                                rx.box(rx.text(row["channel"], font_weight="bold", color="#ECC94B", font_size="md"), width="300px", padding_left="4"),
+                                rx.foreach(
+                                    row["monthly_values"],
+                                    lambda m: rx.box(rx.text(m.value, font_weight="bold", color="#ECC94B", font_size="md", text_align="right"), flex="1", padding_right="4")
+                                ),
+                                rx.box(rx.text(row["total_value"], font_weight="bold", color="#ECC94B", font_size="md", text_align="right"), width="150px", padding_right="4"),
+                                bg="rgba(255, 255, 255, 0.08)",
+                                padding_y="4",
+                                border_top="2px solid #ECC94B",
+                                width="100%",
+                                align="center"
+                            ),
+                            # Normal Channel Row (Accordion)
+                            rx.accordion.root(
+                                rx.accordion.item(
+                                    header=rx.flex(
+                                        rx.box(
+                                            rx.hstack(
+                                                rx.icon("chevron-down", size=16),
+                                                rx.text(row["channel"], font_weight="bold", color="white", font_size="sm"),
+                                                spacing="2",
+                                                align="center"
+                                            ),
+                                            width="300px", 
+                                            padding_left="2"
+                                        ), 
+                                        rx.foreach(
+                                            row["monthly_values"],
+                                            lambda m: rx.box(rx.text(m.value, color="white", font_size="sm", text_align="right"), flex="1", padding_right="4")
+                                        ),
+                                        rx.box(rx.text(row["total_value"], font_weight="bold", color="white", font_size="sm", text_align="right"), width="150px", padding_right="4"),
+                                        width="100%",
+                                        align="center",
+                                        padding_y="2", # Added padding for regular rows
+                                        _hover={"bg": "rgba(255,255,255,0.02)"}
+                                    ),
+                                    content=rx.vstack(
+                                        rx.foreach(
+                                            row["children"],
+                                            lambda child: rx.flex(
+                                                rx.box(
+                                                     rx.hstack(
+                                                        rx.text("•", color="gray.500", font_size="lg", margin_right="1"),
+                                                        rx.text(child["state"], color="gray.300", font_style="italic", font_size="xs"),
+                                                        padding_left="10", # Indent
+                                                        align="center"
+                                                     ),
+                                                     width="300px"
+                                                ),
+                                                rx.foreach(
+                                                    child["monthly_values"],
+                                                    lambda m: rx.box(rx.text(m.value, color="gray.400", font_size="xs", text_align="right"), flex="1", padding_right="4")
+                                                ),
+                                                rx.box(rx.text(child["total_value"], color="gray.300", font_size="xs", text_align="right"), width="150px", padding_right="4"),
+                                                width="100%",
+                                                padding_y="2",
+                                                border_bottom="1px dashed rgba(255,255,255,0.05)",
+                                                _hover={"bg": "rgba(255,255,255,0.02)"},
+                                                align="center"
+                                            )
+                                        ),
+                                        width="100%",
+                                        bg="rgba(0,0,0,0.2)"
+                                    ),
+                                    value="ch",
+                                    border_width="0",
+                                    padding="0",
+                                ),
+                                type="multiple",
+                                collapsible=True,
+                                width="100%",
+                                variant="ghost",
+                            )
+                        ),
+                        width="100%",
+                        border_bottom="1px solid rgba(255,255,255,0.05)"
+                    )
+                ),
+                width="100%",
+                spacing="0"
+            ),
+            width="100%",
+            overflow="auto", # Enable horizontal scroll if columns crowd
+        ),
+        bg=CARD_BG,
+        border_radius="xl",
+        border="1px solid #4A5568",
+        box_shadow="lg",
+    )
+
 def index() -> rx.Component:
     return rx.cond(
         # CONDITIONAL: Show No Data View if dashboard is not started
@@ -2233,12 +3173,13 @@ def index() -> rx.Component:
         no_data_view(),
         # ELSE: Show Main Dashboard
         rx.flex(
+            date_picker_modal(),
             # Sidebar
             sidebar_component(),
             
             # Main Content
             rx.box(
-                rx.container(
+                rx.box(
                     rx.vstack(
                         rx.hstack(
                             rx.button(
@@ -2303,6 +3244,30 @@ def index() -> rx.Component:
                         width="100%",
                     ),
                     
+                    rx.box(height="10px"),
+
+                    # Monthly Summary Table
+                    rx.box(
+                        monthly_summary_table_v2(),
+                        width="100%"
+                    ),
+                    
+                    rx.box(height="20px"),
+
+                    # Monthly Sales Return Table
+                    rx.box(
+                        monthly_sales_return_table(),
+                        width="100%"
+                    ),
+
+                    rx.box(height="20px"),
+
+                    # Invoice vs Returns Table
+                    rx.box(
+                        invoice_vs_return_table(),
+                        width="100%"
+                    ),
+                    
                     rx.separator(margin_y="6", color_scheme="gray"),
                     
                     # Charts Row 1
@@ -2310,7 +3275,7 @@ def index() -> rx.Component:
                         rx.card(
                             rx.vstack(
                                 rx.heading("Monthly Sales Trend (Value in Crore)", size="4", color=TEXT_COLOR, width="100%", text_align="center"),
-                                rx.plotly(data=State.monthly_sales_chart, height="350px"),
+                                rx.plotly(data=State.monthly_sales_chart, height="400px"),
                                 width="100%",
                                 align="center",
                             ),
@@ -2318,10 +3283,14 @@ def index() -> rx.Component:
                             box_shadow="lg",
                              border="1px solid #4A5568",
                         ),
+                        
+                        # Added Channel Wise Sale (Donut Chart)
+                        channel_sales_card(),
+                        
                         rx.card(
                             rx.vstack(
                                 rx.heading("Sales by State Top -10 Distribution (Value in Crore)", size="4", color=TEXT_COLOR, width="100%", text_align="center"),
-                                rx.plotly(data=State.state_sales_chart, height="500px"),
+                                rx.plotly(data=State.state_sales_chart, height="580px"),
                                 width="100%",
                                 align="center",
                             ),
@@ -2340,7 +3309,7 @@ def index() -> rx.Component:
                             rx.vstack(
                                 rx.heading("Sales by Product - Top 5 (Value in Crore)", size="4", color=TEXT_COLOR, width="100%", text_align="center"),
 
-                                rx.plotly(data=State.product_sales_chart, height="500px"),
+                                rx.plotly(data=State.product_sales_chart, height="580px"),
                                 width="100%",
                                 align="center",
                             ),
@@ -2351,7 +3320,7 @@ def index() -> rx.Component:
                          rx.card(
                             rx.vstack(
                                 rx.heading("Sales by Supply Type (Value in Crore)", size="4", color=TEXT_COLOR, width="100%", text_align="center"),
-                                rx.plotly(data=State.supply_sales_chart, height="500px"),
+                                rx.plotly(data=State.supply_sales_chart, height="580px"),
                                 width="100%",
                                 align="center",
                             ),
@@ -2377,10 +3346,10 @@ def index() -> rx.Component:
                             rx.table.root(
                                 rx.table.header(
                                     rx.table.row(
-                                        rx.table.column_header_cell("Rank", text_align="center"),
-                                        rx.table.column_header_cell("Product Name", text_align="center"), # Center align
-                                        rx.table.column_header_cell("Sales", text_align="center"), # shortened for space
-                                        rx.table.column_header_cell("Contribution (in %)", text_align="center"), # Renamed
+                                        rx.table.column_header_cell("Rank", text_align="center", color="white", font_weight="bold"),
+                                        rx.table.column_header_cell("Product Name", text_align="center", color="white", font_weight="bold"), # Center align
+                                        rx.table.column_header_cell("Sales", text_align="center", color="white", font_weight="bold"), # shortened for space
+                                        rx.table.column_header_cell("Contribution (in %)", text_align="center", color="white", font_weight="bold"), # Renamed
                                     ),
                                     bg="rgba(255,255,255,0.05)"
                                 ),
@@ -2399,8 +3368,8 @@ def index() -> rx.Component:
                                                 ),
                                                 text_align="center"
                                             ),
-                                            rx.table.cell(rx.text(row["label"], font_size="xs", weight="medium", text_shadow="0px 1px 2px black"), text_align="center"), # Center align
-                                            rx.table.cell(rx.text(row["formatted_value"], font_family="mono", font_size="xs", font_weight="bold", text_shadow="0px 1px 2px black"), text_align="center"),
+                                            rx.table.cell(rx.text(row["label"], font_size="xs", weight="medium", color="white", text_shadow="0px 1px 2px black"), text_align="center"), # Center align
+                                            rx.table.cell(rx.text(row["formatted_value"], font_family="mono", color="white", font_size="xs", font_weight="bold", text_shadow="0px 1px 2px black"), text_align="center"),
                                             rx.table.cell(
                                                 rx.badge(row["formatted_pct"], color_scheme="blue", variant="solid"),
                                                 text_align="center"
@@ -2428,10 +3397,10 @@ def index() -> rx.Component:
                             rx.table.root(
                                 rx.table.header(
                                     rx.table.row(
-                                        rx.table.column_header_cell("Channel", text_align="center"),
-                                        rx.table.column_header_cell("Sales", text_align="center"),
-                                        rx.table.column_header_cell("Orders", text_align="center"),
-                                        rx.table.column_header_cell("AOV", text_align="center"),
+                                        rx.table.column_header_cell("Channel", text_align="center", color="white", font_weight="bold"),
+                                        rx.table.column_header_cell("Sales", text_align="center", color="white", font_weight="bold"),
+                                        rx.table.column_header_cell("Orders", text_align="center", color="white", font_weight="bold"),
+                                        rx.table.column_header_cell("AOV", text_align="center", color="white", font_weight="bold"),
                                     ),
                                     bg="rgba(255,255,255,0.05)"
                                 ),
@@ -2448,8 +3417,8 @@ def index() -> rx.Component:
                                                 ), 
                                                 text_align="center"
                                             ),
-                                            rx.table.cell(rx.text(row["formatted_sales"], font_family="mono", font_size="xs"), text_align="center"),
-                                            rx.table.cell(rx.text(row["orders"], font_family="mono", font_size="xs"), text_align="center"),
+                                            rx.table.cell(rx.text(row["formatted_sales"], font_family="mono", font_size="xs", color="white"), text_align="center"),
+                                            rx.table.cell(rx.text(row["orders"], font_family="mono", font_size="xs", color="white"), text_align="center"),
                                             rx.table.cell(rx.badge(row["formatted_aov"], color_scheme="green", variant="solid"), text_align="center"),
                                         )
                                     )
@@ -2468,11 +3437,11 @@ def index() -> rx.Component:
                             rx.table.root(
                                 rx.table.header(
                                     rx.table.row(
-                                        rx.table.column_header_cell("State"),
-                                        rx.table.column_header_cell("Top Product"),
-                                        rx.table.column_header_cell("Sales", text_align="right"),
-                                        rx.table.column_header_cell("% contribution to Sales in the State", text_align="center"),
-                                        rx.table.column_header_cell("Total Sale in the State", text_align="center"),
+                                        rx.table.column_header_cell("State", color="white", font_weight="bold"),
+                                        rx.table.column_header_cell("Top Product", color="white", font_weight="bold"),
+                                        rx.table.column_header_cell("Sales", text_align="right", color="white", font_weight="bold"),
+                                        rx.table.column_header_cell("% contribution to Sales in the State", text_align="center", color="white", font_weight="bold"),
+                                        rx.table.column_header_cell("Total Sale in the State", text_align="center", color="white", font_weight="bold"),
                                     ),
                                     bg="rgba(255,255,255,0.05)"
                                 ),
@@ -2480,8 +3449,8 @@ def index() -> rx.Component:
                                     rx.foreach(
                                         State.state_data,
                                         lambda row: rx.table.row(
-                                            rx.table.cell(rx.text(row["state"], font_weight="bold", font_size="xs")),
-                                            rx.table.cell(rx.text(row["product"], font_size="xs")),
+                                            rx.table.cell(rx.text(row["state"], font_weight="bold", font_size="xs", color="white")),
+                                            rx.table.cell(rx.text(row["product"], font_size="xs", color="white")),
                                             rx.table.cell(rx.badge(row["formatted_sales"], color_scheme="blue", variant="solid"), text_align="right"),
                                             rx.table.cell(rx.badge(row["formatted_pct"], color_scheme="green", variant="outline"), text_align="center"),
                                             rx.table.cell(rx.badge(row["formatted_total_sales"], color_scheme="purple", variant="soft"), text_align="center"),
@@ -2496,86 +3465,21 @@ def index() -> rx.Component:
 
 
 
-                    # rx.separator(margin_y="6", color_scheme="gray"),
-                    
-                    # # Summary Tables
-                    # rx.heading("Detailed Breakdown: Channel vs Brand", size="5", color=TEXT_COLOR, width="100%", text_align="center"),
-                    # rx.box(
-                    #     rx.table.root(
-                    #         rx.table.header(
-                    #             rx.table.row(
-                    #                 rx.table.column_header_cell("Month"),
-                    #                 rx.table.column_header_cell("Channel"),
-                    #                 rx.table.column_header_cell("Brand"),
-                    #                 rx.table.column_header_cell("Sales"),
-                    #             ),
-                    #             bg="rgba(255,255,255,0.05)",
-                    #         ),
-                    #         rx.table.body(
-                    #             rx.foreach(
-                    #                 State.summary_brand_data,
-                    #                 lambda row: rx.table.row(
-                    #                     rx.table.cell(row["Month_Label"]),
-                    #                     rx.table.cell(row["Channel"]),
-                    #                     rx.table.cell(row["Brand"]),
-                    #                     rx.table.cell(row["Sales Amount"]),
-                    #                 )
-                    #             )
-                    #         ),
-                    #         variant="surface",
-                    #         size="1",
-                    #     ),
-                    #     width="100%",
-                    #     overflow="auto",
-                    #     max_height="400px",
-                    #     border="1px solid #4A5568",
-                    #     border_radius="8px",
-                    # ),
-                    
-                    # rx.box(height="20px"),
-                    
-                    # rx.heading("Summary: Channel vs State", size="5", color=TEXT_COLOR, width="100%", text_align="center"),
-                    # rx.box(
-                    #     rx.table.root(
-                    #         rx.table.header(
-                    #             rx.table.row(
-                    #                 rx.table.column_header_cell("Month"),
-                    #                 rx.table.column_header_cell("Channel"),
-                    #                 rx.table.column_header_cell("State"),
-                    #                 rx.table.column_header_cell("Sales"),
-                    #             ),
-                    #             bg="rgba(255,255,255,0.05)",
-                    #         ),
-                    #         rx.table.body(
-                    #             rx.foreach(
-                    #                 State.summary_state_data,
-                    #                 lambda row: rx.table.row(
-                    #                     rx.table.cell(row["Month_Label"]),
-                    #                     rx.table.cell(row["Channel"]),
-                    #                     rx.table.cell(row["CUSTOMER STATE"]),
-                    #                     rx.table.cell(row["Sales Amount"]),
-                    #                 )
-                    #             )
-                    #         ),
-                    #         variant="surface",
-                    #         size="1",
-                    #     ),
-                    #     width="100%",
-                    #     overflow="auto",
-                    #     max_height="400px",
-                    #     border="1px solid #4A5568",
-                    #     border_radius="8px",
-                    # ),
+
+
 
                     rx.box(height="40px"), # Bottom padding
                     ), 
                     padding="6",
-                    max_width="1600px", 
+                    width="100%", # Occupy full width
+                    max_width="1300px", # EXACT match for table content (1290px + margins)
+                    margin_x="auto", # Center horizontally
                 ), 
                 bg=CONTENT_BG,
                 flex="1",
                 height="100vh",
                 overflow="auto",
+                align_items="center", # Ensure children center
             ),
             spacing="0",
             flex_direction=["column", "row"],
@@ -2598,3 +3502,532 @@ app = rx.App(
     )
 )
 app.add_page(index, title="Sales Dashboard")
+def monthly_summary_table_v2() -> rx.Component:
+    # Style constants matching the screenshot
+    TITLE_BG = "#F6AD55" # Orange
+    COL_HEADER_BG = "#2D3748" # Dark Grey
+    ROW_BG = "white"
+    FOOTER_BG = "#C6F6D5" # Light Green
+    BORDER_COLOR = "#E2E8F0" # Light border for rows
+    MONTH_COL_WIDTH = "110px"
+
+    return rx.box(
+        # 1. Main Title Bar
+        rx.flex(
+            rx.box(
+                rx.text("Monthly Summary of Gross Sale Value (Channel wise)", font_size="md", font_weight="bold", color="black", text_align="center", width="100%"),
+                rx.text("Breakdown by Channel and Top 5 States", font_size="sm", color="black", text_align="center", width="100%"),
+                width="100%",
+            ),
+            align="center",
+            justify="center",
+            padding="3",
+            bg=TITLE_BG,
+            border_top_left_radius="lg",
+            border_top_right_radius="lg",
+            border="1px solid #4A5568",
+        ),
+        
+        # 2. Table Container
+        rx.box(
+            # HEADER ROW
+            rx.flex(
+                rx.box(rx.text("Channel / State", font_weight="bold", color="white", font_size="sm"), width="300px", min_width="300px", max_width="300px", padding_left="4", padding_y="3", border_right="1px solid gray", overflow="hidden"),
+                rx.foreach(
+                    State.summary_table_columns,
+                    lambda col: rx.flex(
+                        rx.text(col, font_weight="bold", color="white", font_size="sm", text_align="center", width="100%"),
+                        width=MONTH_COL_WIDTH,
+                        min_width=MONTH_COL_WIDTH,
+                        max_width=MONTH_COL_WIDTH,
+                        flex="none", 
+                        padding_y="3", 
+                        border_right="1px solid gray", 
+                        justify="center", 
+                        align="center",
+                        overflow="hidden"
+                    )
+                ),
+                rx.box(rx.text("Grand Total", font_weight="bold", color="white", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="3", overflow="hidden"),
+                bg=COL_HEADER_BG,
+                width="100%",
+                align="center",
+                border_left="1px solid #4A5568", 
+                border_right="1px solid #4A5568",
+            ),
+            
+            # BODY ROWS
+            rx.vstack(
+                rx.foreach(
+                    State.monthly_summary_data,
+                    lambda row: rx.box(
+                        # Condition: Grand Total Footer vs Data Rows
+                        rx.cond(
+                            row.is_total,
+                             # FOOTER ROW (Grand Total)
+                             rx.flex(
+                                rx.box(rx.text(row.channel, font_weight="bold", color="black", font_size="sm"), width="300px", min_width="300px", max_width="300px", padding_left="4", padding_y="3", border_right=f"1px solid {BORDER_COLOR}", overflow="hidden"),
+                                rx.foreach(
+                                    row.monthly_values,
+                                    lambda m, i: rx.flex(
+                                        rx.text(m.value, color="black", font_size="sm", text_align="center", width="100%", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"), 
+                                        width=MONTH_COL_WIDTH,
+                                        min_width=MONTH_COL_WIDTH,
+                                        max_width=MONTH_COL_WIDTH,
+                                        flex="none", 
+                                        padding_y="3", 
+                                        border_right=f"1px solid {BORDER_COLOR}", 
+                                        bg=rx.cond(i % 2 == 0, "white", "#C6F6D5"), # Darker Green Shading (Green 100)
+                                        justify="center",
+                                        align="center",
+                                        overflow="hidden"
+                                    )
+                                ),
+                                    rx.box(rx.text(row.total_value, font_weight="bold", color="black", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="3", overflow="hidden"),
+                                bg=FOOTER_BG,
+                                width="100%",
+                                align="center",
+                                border_top=f"1px solid {BORDER_COLOR}",
+                            ),
+                            # DATA ROW (Channel + Accordion)
+                            rx.accordion.root(
+                                rx.accordion.item(
+                                    rx.accordion.trigger(
+                                        rx.flex(
+                                            rx.box(
+                                                rx.hstack(
+                                                    rx.icon("chevron-down", size=16, color="black"),
+                                                    rx.text(row.channel, font_weight="bold", color="black", font_size="sm", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"),
+                                                    spacing="2",
+                                                    align="center"
+                                                ),
+                                                width="300px", 
+                                                min_width="300px",
+                                                max_width="300px",
+                                                padding_left="2",
+                                                padding_y="3",
+                                                border_right=f"1px solid {BORDER_COLOR}",
+                                                overflow="hidden"
+                                            ), 
+                                            rx.foreach(
+                                                row.monthly_values,
+                                                lambda m, i: rx.flex(
+                                                    rx.text(m.value, color="black", font_size="sm", text_align="center", width="100%", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"), 
+                                                    width=MONTH_COL_WIDTH,
+                                                    min_width=MONTH_COL_WIDTH,
+                                                    max_width=MONTH_COL_WIDTH,
+                                                    flex="none",
+                                                    padding_y="3", 
+                                                    border_right=f"1px solid {BORDER_COLOR}", 
+                                                    bg=rx.cond(i % 2 == 0, "white", "#C6F6D5"), # Darker Green Shading (Green 100)
+                                                    justify="center",
+                                                    align="center",
+                                                    overflow="hidden"
+                                                )
+                                            ),
+                                                rx.box(rx.text(row.total_value, font_weight="bold", color="black", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="3", overflow="hidden"),
+                                            width="100%",
+                                            align="center",
+                                            bg=ROW_BG,
+                                            _hover={"bg": "gray.50"}
+                                        ),
+                                        padding="0",
+                                        _hover={"bg": "transparent"},
+                                    ),
+                                    rx.accordion.content(
+                                        rx.vstack(
+                                            rx.foreach(
+                                                row.children,
+                                                lambda child: rx.flex(
+                                                    rx.box(
+                                                        rx.text(child.state, color="gray", font_size="sm", padding_left="8"), 
+                                                        width="300px", 
+                                                        min_width="300px",
+                                                        max_width="300px",
+                                                        padding_y="2", 
+                                                        border_right=f"1px solid {BORDER_COLOR}",
+                                                        overflow="hidden"
+                                                    ),
+                                                    rx.foreach(
+                                                        child.monthly_values,
+                                                        lambda m, i: rx.flex(
+                                                            rx.text(m.value, color="gray", font_size="sm", text_align="center", width="100%", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"), 
+                                                            width=MONTH_COL_WIDTH,
+                                                            min_width=MONTH_COL_WIDTH,
+                                                            max_width=MONTH_COL_WIDTH,
+                                                            flex="none", 
+                                                            padding_y="2", 
+                                                            border_right=f"1px solid {BORDER_COLOR}", 
+                                                            bg=rx.cond(i % 2 == 0, "gray.50", "#C6F6D5"), # Darker Green Shading (Green 100)
+                                                            justify="center",
+                                                            align="center",
+                                                            overflow="hidden"
+                                                        )
+                                                    ),
+                                                    rx.box(rx.text(child.total_value, color="gray", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="2", overflow="hidden"),
+                                                    bg="gray.50",
+                                                    width="100%",
+                                                    align="center",
+                                                    border_top="1px dotted gray",
+                                                )
+                                            ),
+                                            width="100%",
+                                            spacing="0",
+                                        ),
+                                        padding="0",
+                                    ),
+                                    border_width="0",
+                                    padding="0",
+                                ),
+                                type="multiple",
+                                collapsible=True,
+                                width="100%",
+                                variant="ghost",
+                            )
+                        ),
+                        width="100%",
+                        border_bottom=f"1px solid {BORDER_COLOR}",
+                        bg=ROW_BG
+                    )
+                ),
+                width="100%",
+                spacing="0"
+            ),
+            width="100%",
+            overflow="auto", 
+        ),
+        bg="transparent",
+        width="100%",
+        min_width="1290px", # Minimum to fit columns (300 + 110*9)
+        box_shadow="lg",
+    )
+
+def monthly_sales_return_table() -> rx.Component:
+    # Colors matching screenshot (Red Theme)
+    TITLE_BG = "#E53E3E" # Red 600
+    COL_HEADER_BG = "#2D3748"
+    ROW_BG = "white"
+    FOOTER_BG = "#FED7E2" # Light Pink/Red
+    BORDER_COLOR = "#E2E8F0"
+    MONTH_COL_WIDTH = "110px"
+
+    return rx.box(
+        # 1. Main Title Bar
+        rx.flex(
+            rx.box(
+                rx.text("Monthly Sales Return (Channel wise)", font_size="md", font_weight="bold", color="white", text_align="center", width="100%"),
+                width="100%",
+            ),
+            align="center",
+            justify="center",
+            padding="3",
+            bg=TITLE_BG,
+            border_top_left_radius="lg",
+            border_top_right_radius="lg",
+            border="1px solid #4A5568",
+        ),
+        
+        rx.box(
+            # HEADER ROW
+            rx.flex(
+                rx.box(rx.text("Channel", font_weight="bold", color="white", font_size="sm"), width="300px", min_width="300px", max_width="300px", padding_left="4", padding_y="3", border_right="1px solid gray", overflow="hidden"),
+                rx.foreach(
+                    State.summary_table_columns,
+                    lambda col: rx.flex(
+                        rx.text(col, font_weight="bold", color="white", font_size="sm", text_align="center", width="100%"),
+                        width=MONTH_COL_WIDTH,
+                        min_width=MONTH_COL_WIDTH,
+                        max_width=MONTH_COL_WIDTH,
+                        flex="none", 
+                        padding_y="3", 
+                        border_right="1px solid gray", 
+                        justify="center", 
+                        align="center",
+                        overflow="hidden"
+                    )
+                ),
+                rx.box(rx.text("Grand Total", font_weight="bold", color="white", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="3", overflow="hidden"),
+                bg=COL_HEADER_BG,
+                width="100%",
+                align="center",
+                border_left="1px solid #4A5568", 
+                border_right="1px solid #4A5568",
+            ),
+            
+            # BODY ROWS
+            rx.vstack(
+                rx.foreach(
+                    State.monthly_sales_return_data,
+                    lambda row: rx.box(
+                         rx.flex(
+                            rx.box(rx.text(row.channel, font_weight="bold", color="black", font_size="sm"), width="300px", min_width="300px", max_width="300px", padding_left="4", padding_y="3", border_right=f"1px solid {BORDER_COLOR}", overflow="hidden"),
+                            rx.foreach(
+                                row.monthly_values,
+                                lambda m, i: rx.flex(
+                                    rx.text(m.value, color="black", font_size="sm", text_align="center", width="100%", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"), 
+                                    width=MONTH_COL_WIDTH,
+                                    min_width=MONTH_COL_WIDTH,
+                                    max_width=MONTH_COL_WIDTH,
+                                    flex="none", 
+                                    padding_y="3", 
+                                    border_right=f"1px solid {BORDER_COLOR}", 
+                                    bg=rx.cond(i % 2 == 0, "white", "#FED7E2"), # Darker Red Shading (Red 100)
+                                    justify="center",
+                                    align="center",
+                                    overflow="hidden"
+                                )
+                            ),
+                                rx.box(rx.text(row.total_value, font_weight="bold", color="black", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="3", overflow="hidden"),
+                            bg=rx.cond(row.is_total, FOOTER_BG, ROW_BG),
+                            width="100%",
+                            align="center",
+                            border_top=rx.cond(row.is_total, f"1px solid {BORDER_COLOR}", "none"),
+                            border_bottom=f"1px solid {BORDER_COLOR}"
+                        )
+                    )
+                ),
+                width="100%",
+                spacing="0"
+            ),
+            width="100%",
+            overflow="auto", 
+        ),
+        bg="transparent",
+        width="100%",
+        min_width="1290px",
+        box_shadow="lg",
+    )
+
+def invoice_vs_return_table() -> rx.Component:
+    # Blue/Cornflower Theme
+    TITLE_BG = "#4299E1" # Blue 500
+    COL_HEADER_BG = "#2D3748"
+    SUB_HEADER_BG = "#4A5568"
+    ROW_BG = "white"
+    FOOTER_BG = "#BEE3F8" # Light Blue
+    PCT_BG = "#E6FFFA" # Mintish for Pct
+    BORDER_COLOR = "#E2E8F0"
+    
+    COL_WIDTH = "70px" # Smaller cols for Inv/Ret
+    MONTH_COL_WIDTH = "200px" 
+
+    return rx.box(
+        # 1. Main Title Bar
+        rx.flex(
+             rx.box(
+                rx.hstack(
+                     rx.icon("file-text", size=20, color="white"),
+                    rx.text("Invoice vs Sales Return", font_size="md", font_weight="bold", color="white", text_align="center"),
+                    justify="center",
+                    align="center", 
+                    spacing="2"
+                ),
+                width="100%",
+             ),
+            align="center",
+            justify="center",
+            padding="3",
+            bg=TITLE_BG,
+            border_top_left_radius="lg",
+            border_top_right_radius="lg",
+            border="1px solid #4A5568",
+        ),
+        
+        rx.box(
+             # COMPLEX HEADER
+             rx.flex(
+                 # Column 1: Month (Merged Vertically)
+                 rx.box(
+                     rx.center(
+                         rx.text("Month", font_weight="bold", color="white", font_size="sm"),
+                         height="100%",
+                         width="100%"
+                     ),
+                     width=MONTH_COL_WIDTH, 
+                     min_width=MONTH_COL_WIDTH, 
+                     border_right="1px solid gray", 
+                     bg=COL_HEADER_BG,
+                     height="auto", # Fill height of parent flex
+                     flex_shrink=0
+                 ),
+                 
+                 # Column Block: Channels + Subheaders
+                 rx.vstack(
+                     # Row A: Channels 
+                     rx.flex(
+                         rx.foreach(
+                             State.invoice_return_columns,
+                             lambda col: rx.flex(
+                                 rx.text(col, font_weight="bold", color="white", font_size="sm", text_align="center", width="100%"),
+                                 width="140px", 
+                                 min_width="140px",
+                                 flex="none", 
+                                 padding_y="3", 
+                                 border_right="1px solid gray", 
+                                 justify="center", 
+                                 align="center",
+                                 overflow="hidden"
+                             )
+                         ),
+                         bg=COL_HEADER_BG,
+                         width="fit-content",
+                         spacing="0"
+                     ),
+                     
+                     # Row B: Inv / Ret Sub-headers
+                     rx.flex(
+                         rx.foreach(
+                             State.invoice_return_columns,
+                             lambda col: rx.flex(
+                                 rx.box(rx.text("Inv", color="#68D391", font_size="xs", font_weight="bold", text_align="center"), width=COL_WIDTH, border_right="1px dotted gray", padding_y="2"),
+                                 rx.box(rx.text("Ret", color="#F56565", font_size="xs", font_weight="bold", text_align="center"), width=COL_WIDTH, border_right="1px solid gray", padding_y="2"),
+                                 width="140px",
+                                 min_width="140px",
+                                 flex="none",
+                                 justify="center",
+                                 align="center",
+                                 overflow="hidden",
+                                 spacing="0"
+                             )
+                         ),
+                         bg=SUB_HEADER_BG,
+                         width="fit-content",
+                         border_top="1px solid gray",
+                         spacing="0"
+                     ),
+                     spacing="0",
+                     width="fit-content"
+                 ),
+                 width="fit-content",
+                 align="stretch"
+             ),
+
+
+             # BODY
+             rx.vstack(
+                 rx.foreach(
+                     State.invoice_vs_return_data,
+                     lambda row: rx.flex(
+                         rx.box(rx.text(row.month, font_weight="bold", color="black", font_size="sm"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, padding_left="4", padding_y="3", border_right=f"1px solid {BORDER_COLOR}", overflow="hidden"),
+                         
+                         # Check if it has 'channels' list (Normal Rows)
+                         rx.cond(
+                            row.is_pct,
+                             # PCT ROW
+                             rx.foreach(
+                                 row.channels,
+                                 lambda ch: rx.box(
+                                      rx.text(ch.val, color=ch.color, font_weight="bold", font_size="sm", text_align="center", width="100%"),
+                                      width="140px", # Span 2
+                                      min_width="140px",
+                                      padding_y="3",
+                                      border_right=f"1px solid {BORDER_COLOR}",
+                                        bg=PCT_BG
+                                   )
+                               ),
+                               # ELSE: Normal Data Row or Total Count
+                               rx.foreach(
+                                   row.channels,
+                                   lambda ch, i: rx.flex(
+                                        rx.box(rx.text(ch.inv, color=rx.cond(row.is_total, "black", "black"), font_weight=rx.cond(row.is_total, "bold", "normal"), font_size="sm", text_align="center"), width=COL_WIDTH, padding_y="3", border_right=f"1px dotted {BORDER_COLOR}"),
+                                        rx.box(rx.text(ch.ret, color=ch.ret_color, font_weight="bold", font_size="sm", text_align="center"), width=COL_WIDTH, padding_y="3", border_right=f"1px solid {BORDER_COLOR}"),
+                                        width="140px",
+                                        min_width="140px",
+                                        align="center",
+                                        bg=rx.cond(i % 2 == 0, rx.cond(row.is_total, FOOTER_BG, ROW_BG), rx.cond(row.is_total, FOOTER_BG, "#BEE3F8")) # Darker Blue Shading (Blue 100)
+                                   )
+                               )
+                           ),
+                           rx.cond(
+                              row.is_pct,
+                               rx.box(
+                                    rx.text(row.grand_total_val, color="green", font_weight="bold", font_size="sm", text_align="center", width="100%"),
+                                    width="140px", 
+                                    min_width="140px",
+                                    padding_y="3",
+                                    border_right=f"1px solid {BORDER_COLOR}",
+                                    bg=PCT_BG
+                               ),
+                               rx.flex(
+                                    rx.box(rx.text(row.grand_total_inv, color="black", font_weight="bold", font_size="sm", text_align="center"), width=COL_WIDTH, padding_y="3", border_right=f"1px dotted {BORDER_COLOR}"),
+                                    rx.box(rx.text(row.grand_total_ret, color="red", font_weight="bold", font_size="sm", text_align="center"), width=COL_WIDTH, padding_y="3", border_right=f"1px solid {BORDER_COLOR}"),
+                                    width="140px",
+                                    min_width="140px",
+                                    align="center",
+                                    bg=rx.cond(row.is_total, FOOTER_BG, "#EBF8FF") # Shade Grand Total Column Blue
+                               )
+                           ),
+                           
+                           bg=rx.cond(row.is_total, FOOTER_BG, ROW_BG),
+                           width="fit-content",
+                           border_bottom=f"1px solid {BORDER_COLOR}",
+                           align="center"
+                       )
+                 ),
+                 width="fit-content",
+                 spacing="0",
+             ),
+             
+             width="100%",
+             overflow="auto",
+        ),
+        bg="transparent",
+        width="100%",
+        box_shadow="lg",
+    )
+
+# Channel Sales Card
+# Channel Sales Card
+def channel_sales_card() -> rx.Component:
+    return rx.card(
+        rx.vstack(
+            rx.heading("Channel Wise Sale", size="4", color=TEXT_COLOR, width="100%", text_align="center", margin_bottom="4"), 
+            
+            rx.flex(
+                # Chart
+                rx.box(
+                    rx.plotly(data=State.channel_sales_chart, height="580px", config={"displayModeBar": False}),
+                    width="55%", # Slightly increased width allocation
+                    min_width="300px",
+                    display="flex",
+                    justify_content="center",
+                    align_items="center"
+                ),
+                
+                # Custom Legend
+                rx.vstack(
+                    rx.foreach(
+                        State.channel_sales_stats,
+                        lambda item: rx.hstack(
+                             rx.box(width="10px", height="10px", border_radius="50%", bg=item["color"]),
+                             rx.text(item["channel"], color="gray.300", font_size="sm", font_weight="medium"),
+                             rx.spacer(),
+                             rx.text(item["value"], color="white", font_size="sm", font_weight="bold"),
+                             rx.text(item["pct"], color="gray.500", font_size="xs", font_weight="medium"),
+                             width="100%",
+                             padding_y="1",
+                             border_bottom="1px dashed #4A5568",
+                             align="center"
+                        )
+                    ),
+                    width="50%",
+                    min_width="250px",
+                    padding_left="4",
+                    spacing="0"
+                ),
+                
+                width="100%",
+                flex_wrap="wrap",
+                align="center",
+                justify="center"
+            ),
+            width="100%",
+        ),
+        bg=CARD_BG,
+        border_radius="xl",
+        box_shadow="lg",
+        border="1px solid #4A5568",
+        padding="6",
+        width="100%",
+        height="100%"
+    )
