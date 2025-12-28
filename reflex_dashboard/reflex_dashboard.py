@@ -351,9 +351,9 @@ class State(rx.State):
                             v_upper = val.upper()
                             if "AMAZON" in v_upper: return "Amazon"
                             if "FLIPKART" in v_upper: return "Flipkart"
-                            if "RCLUB" in v_upper: return "rclub.in"
+                            if "RCLUB" in v_upper: return "Rclub.in"
                             if "BUSINESS CLUB" in v_upper: return "Rajnigandha Business Club" 
-                            if "RAJNIGANDHA" in v_upper: return "rajnigandha.com"
+                            if "RAJNIGANDHA" in v_upper: return "Rajnigandha.com"
                             if "B2B" in v_upper or "DEALER" in v_upper: return "B2B" 
                             return val 
                             
@@ -1021,26 +1021,27 @@ class State(rx.State):
         ))
 
         fig.update_layout(
-            height=400, # Explicit height override
-            paper_bgcolor=CARD_BG,
-            plot_bgcolor=CARD_BG,
-            font_color=TEXT_COLOR,
-            margin=dict(l=20, r=20, t=20, b=20),
-            hovermode="x unified",
-            xaxis=dict(
-                showgrid=True, 
-                gridwidth=1, 
-                gridcolor="#4A5568",
-                showline=False
-            ),
-            yaxis=dict(
-                showgrid=True, 
-                gridwidth=1, 
-                gridcolor="#4A5568",
-                showline=False,
-                showticklabels=False # Hide y-axis labels as values are in bubbles
-            )
+        template="plotly_dark",
+        height=400, # Explicit height override
+        paper_bgcolor="rgba(0,0,0,0)", # Transparent to let card bg show
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color=TEXT_COLOR,
+        margin=dict(l=20, r=20, t=20, b=20),
+        hovermode="x unified",
+        xaxis=dict(
+            showgrid=True, 
+            gridwidth=1, 
+            gridcolor=BORDER_COLOR,
+            showline=False
+        ),
+        yaxis=dict(
+            showgrid=True, 
+            gridwidth=1, 
+            gridcolor=BORDER_COLOR,
+            showline=False,
+            showticklabels=False # Hide y-axis labels as values are in bubbles
         )
+    )
         return fig
 
     @rx.var
@@ -1124,8 +1125,8 @@ class State(rx.State):
         )
         fig.update_layout(
             height=580, # Explicit height override
-            paper_bgcolor=CARD_BG,
-            plot_bgcolor=CARD_BG,
+            paper_bgcolor="#000000",
+            plot_bgcolor="#000000",
             font_color=TEXT_COLOR,
             margin=dict(l=20, r=20, t=20, b=20),
             showlegend=True,
@@ -1159,8 +1160,8 @@ class State(rx.State):
         )
         fig.update_layout(
             height=580, # Explicit height override
-            paper_bgcolor=CARD_BG,
-            plot_bgcolor=CARD_BG,
+            paper_bgcolor="#000000",
+            plot_bgcolor="#000000",
             font_color=TEXT_COLOR,
             margin=dict(l=20, r=20, t=20, b=20),
             showlegend=True,
@@ -1433,6 +1434,18 @@ class State(rx.State):
         return f"₹{avg:,.2f} Cr"
 
     @rx.var
+    def table_date_range_title(self) -> str:
+        """Dynamic title suffix with date range."""
+        if not self.start_date or not self.end_date:
+            return ""
+        try:
+            s = pd.to_datetime(self.start_date).strftime("%B - %Y")
+            e = pd.to_datetime(self.end_date).strftime("%B - %Y")
+            return f"({s} To {e})"
+        except:
+            return ""
+
+    @rx.var
     def monthly_summary_data(self) -> list[ChannelSummary]:
         """
         Data for Monthly Summary of Gross Sale Value (Channel wise) Table.
@@ -1474,7 +1487,7 @@ class State(rx.State):
                 is_shade_col = (i % 2 == 0) # Shade even indices (Apr, Jun, etc.)
                 ch_monthly_values.append(
                     MonthlyValue(
-                        month=pd.Timestamp(m).strftime('%b -%Y'), 
+                        month=pd.Timestamp(m).strftime('%b'), 
                         value=fmt(val),
                         is_shaded=is_shade_col
                     )
@@ -1499,7 +1512,7 @@ class State(rx.State):
                     is_shade_col = (i % 2 == 0)
                     st_monthly_vals.append(
                         MonthlyValue(
-                            month=pd.Timestamp(m).strftime('%b -%Y'), 
+                            month=pd.Timestamp(m).strftime('%b'), 
                             value=fmt(val),
                             is_shaded=is_shade_col
                         )
@@ -1525,7 +1538,7 @@ class State(rx.State):
                     is_shade_col = (i % 2 == 0)
                     oth_monthly_vals.append(
                         MonthlyValue(
-                            month=pd.Timestamp(m).strftime('%b -%Y'), 
+                            month=pd.Timestamp(m).strftime('%b'), 
                             value=fmt(val),
                             is_shaded=is_shade_col
                         )
@@ -1557,7 +1570,7 @@ class State(rx.State):
             is_shade_col = (i % 2 == 0)
             gt_vals.append(
                 MonthlyValue(
-                    month=pd.Timestamp(m).strftime('%b -%Y'), 
+                    month=pd.Timestamp(m).strftime('%b'), 
                     value=fmt(val),
                     is_shaded=is_shade_col
                 )
@@ -1578,13 +1591,14 @@ class State(rx.State):
 
 
         
+
     @rx.var
     def summary_table_columns(self) -> list[str]:
         """Dynamic columns for the monthly summary table."""
         if self.filtered_df.empty:
             return []
         months = sorted(self.filtered_df["Month_Date"].unique())
-        return [pd.Timestamp(m).strftime('%b -%Y') for m in months]
+        return [pd.Timestamp(m).strftime('%b') for m in months]
 
     @rx.var
     def monthly_sales_return_data(self) -> list[ChannelSummary]:
@@ -1637,7 +1651,7 @@ class State(rx.State):
                 is_shade_col = (i % 2 == 0)
                 ch_monthly_values.append(
                     MonthlyValue(
-                        month=pd.Timestamp(m).strftime('%b -%Y'), 
+                        month=pd.Timestamp(m).strftime('%b'), 
                         value=fmt(val),
                         is_shaded=is_shade_col
                     )
@@ -1662,7 +1676,7 @@ class State(rx.State):
             is_shade_col = (i % 2 == 0)
             gt_vals.append(
                 MonthlyValue(
-                    month=pd.Timestamp(m).strftime('%b -%Y'), 
+                    month=pd.Timestamp(m).strftime('%b'), 
                     value=fmt(val),
                     is_shaded=is_shade_col
                 )
@@ -1687,7 +1701,7 @@ class State(rx.State):
             return []
         # Get unique channels + Grand Total
         channels = sorted(self.filtered_df["Channel"].unique().tolist())
-        return channels + ["Grand Total"]
+        return channels
 
     @rx.var
     def invoice_vs_return_data(self) -> list[InvRetRow]:
@@ -1714,7 +1728,7 @@ class State(rx.State):
 
         for m in months:
             m_df = df[df["Month_Date"] == m]
-            month_label = pd.Timestamp(m).strftime('%b -%Y')
+            month_label = pd.Timestamp(m).strftime('%b')
             
             channel_data = []
             
@@ -1749,6 +1763,16 @@ class State(rx.State):
             grand_total_inv_sum += row_total_inv
             grand_total_ret_sum += row_total_ret
             
+            # Append Grand Total to channels list
+            channel_data.append(
+                InvRetChannel(
+                    channel="Grand Total",
+                    inv=str(row_total_inv),
+                    ret=str(row_total_ret) if row_total_ret > 0 else "-",
+                    ret_color="red" if row_total_ret > 0 else "black"
+                )
+            )
+            
             rows.append(
                 InvRetRow(
                     month=month_label,
@@ -1769,6 +1793,16 @@ class State(rx.State):
                      ret_color="red"
                 )
             )
+            
+        # Append Grand Total for Totals Row
+        total_channels.append(
+            InvRetChannel(
+                 channel="Grand Total",
+                 inv=str(grand_total_inv_sum),
+                 ret=str(grand_total_ret_sum),
+                 ret_color="red"
+            )
+        )
         
         rows.append(
             InvRetRow(
@@ -1795,6 +1829,13 @@ class State(rx.State):
              )
              
         gt_pct = (grand_total_ret_sum / grand_total_inv_sum * 100) if grand_total_inv_sum > 0 else 0
+        pct_channels.append(
+             InvRetChannel(
+                  channel="Grand Total",
+                  val=f"{gt_pct:.2f}%",
+                  color=TEXT_COLOR # Changed from "green"
+             )
+        )
         
         rows.append(
             InvRetRow(
@@ -1887,14 +1928,15 @@ class State(rx.State):
 
 # Styling Constants - Dark Mode
 # Styling Constants - Pitch Black Mode
-# Deep/Dark Palette for better white text contrast
+# Luxury / High Contrast Dark Palette
 CHART_COLORS = ["#3182CE", "#2F855A", "#D69E2E", "#C05621", "#805AD5", "#2C7A7B", "#B7791F", "#2B6CB0", "#276749", "#975A16"]
 
 SIDEBAR_BG = "#000000" # Pitch Black sidebar
 CONTENT_BG = "#000000" # Pitch Black content
-CARD_BG = "#111111" # Near Black for cards
-TEXT_COLOR = "#f7fafc" # White/Light Gray
-ACCENT_COLOR = "#63b3ed" # Light Blue
+CARD_BG = "#0A0A0A" # Deepest Gray/Black for cards
+TEXT_COLOR = "#FFFFFF" # Pure White
+ACCENT_COLOR = "#D4AF37" # Metallic Gold for Luxury Accent (was Light Blue)
+BORDER_COLOR = "#333333" # Subtle dark borders
 
 # --- UI Helpers ---
 
@@ -1902,22 +1944,23 @@ def table_container(title, subtitle, bg_color, content, footer=None):
     return rx.box(
         rx.flex(
             rx.box(
-                rx.text(title, font_size="lg", font_weight="extrabold", color="white", text_align="center", width="100%"), # size md->lg, extra_bold->extrabold
-                rx.text(subtitle, font_size="sm", font_weight="bold", color="white", text_align="center", width="100%"), # size xs->sm, gray.200->white
+                rx.text(title, font_size="lg", font_weight="900", color="white", letter_spacing="0.05em", text_align="center", width="100%"),
+                rx.text(subtitle, font_size="xs", font_weight="bold", color="gray.400", text_align="center", width="100%", letter_spacing="0.05em"),
                 width="100%",
             ),
             align="center",
             justify="center",
             padding="4",
-            border_bottom="1px solid #4A5568",
-            bg="rgba(255, 255, 255, 0.05)"
+            border_bottom=f"1px solid {BORDER_COLOR}",
+            bg="rgba(255, 255, 255, 0.02)"
         ),
         content,
         footer if footer is not None else rx.fragment(),
         bg=CARD_BG,
         border_radius="xl",
-        border="1px solid #4A5568",
-        box_shadow="lg",
+        border=f"1px solid {BORDER_COLOR}",
+        box_shadow="0 4px 20px rgba(0, 0, 0, 0.5)", # Deeper shadow
+
         # overflow="hidden" # Removed to allow scrolling if needed
     )
 
@@ -1926,7 +1969,11 @@ def trend_badge(trend: str, text_color: str = None, font_size: str = "0.7em"):
     if trend is None:
         trend = ""
     if text_color is None:
-        trend_color = rx.cond(trend.contains("-"), "#F56565", "#00C851")
+        trend_color = rx.cond(
+            (trend.contains("-")) | (trend.contains("↓")), 
+            "#D0312D", # Pitch Red
+            "#00C851" # Good Green
+        )
     else:
         trend_color = text_color
         
@@ -1947,7 +1994,7 @@ def trend_badge(trend: str, text_color: str = None, font_size: str = "0.7em"):
         }
     )
 
-def kpi_card(title: str, value: str, trend: str, icon: str, color_scheme: str, bg_color: str = "rgba(255, 255, 255, 0.03)", align: str = "start", value_size: str = "6", title_size: str = "2", bottom_left: str = None, bottom_right: str = None, bottom_left_trend: str = None, bottom_right_trend: str = None, bottom_left_icon: str = None, bottom_right_icon: str = None, trend_inline: bool = False, subtitle: str = None):
+def kpi_card(title: str, value: str, trend: str, icon: str, color_scheme: str, bg_color: str = CARD_BG, align: str = "start", value_size: str = "6", title_size: str = "2", bottom_left: str = None, bottom_right: str = None, bottom_left_trend: str = None, bottom_right_trend: str = None, bottom_left_icon: str = None, bottom_right_icon: str = None, trend_inline: bool = False, subtitle: str = None):
     """
     A modern KPI card with:
     - Icon on the left (or top-right)
@@ -1959,30 +2006,33 @@ def kpi_card(title: str, value: str, trend: str, icon: str, color_scheme: str, b
     - Optional inline trend
     """
     # Color mapping for trends
-    trend_color = rx.cond(trend.contains("-"), "#F56565", "#00C851")
-    
-    # If using a solid background, we might need to adjust text colors, but white usually works on colored BGs too.
+    trend_color = rx.cond(
+        (trend.contains("-")) | (trend.contains("↓")), 
+        "#D0312D", # Pitch Red
+        "#68D391" # Lighter green for dark mode
+    )
     
     return rx.box(
         rx.vstack(
             rx.hstack(
                 rx.vstack(
-                    rx.heading(title, size=title_size, font_weight="bold", color="gray.200"), # Lighter gray, bold for title
+                    rx.heading(title, size=title_size, font_weight="900", color="gray.400", letter_spacing="0.05em", text_transform="uppercase"), # Uppercase title
                     rx.cond(
                          subtitle is not None,
-                         rx.text(subtitle, font_size="sm", color="white", opacity=0.9, font_weight="bold"),
+                         rx.text(subtitle, font_size="xs", color="gray.500", font_weight="bold"),
                          rx.fragment()
                     ),
                     rx.heading(
                         value, 
                         rx.cond(
                             trend_inline,
-                            rx.box(trend_badge(trend, font_size="0.5em"), display="inline-block", style={"verticalAlign": "middle", "marginTop": "-15px"}),
+                            rx.box(trend_badge(trend, font_size="0.5em"), display="inline-block", style={"verticalAlign": "middle", "marginTop": "-10px", "marginLeft": "8px"}),
                             rx.fragment()
                         ),
                         size=value_size, 
-                        font_weight="bold", 
-                        color="white"
+                        font_weight="900", 
+                        color="white",
+                        letter_spacing="-0.02em" # Tight spacing for numbers
                     ),
                     align_items=align,
                     spacing="1",
@@ -1992,7 +2042,7 @@ def kpi_card(title: str, value: str, trend: str, icon: str, color_scheme: str, b
                     align == "start",
                     rx.box(
                          rx.spacer(),
-                         rx.icon(icon, size=24, color=color_scheme, stroke_width=2),
+                         rx.icon(icon, size=28, color=color_scheme, stroke_width=1.5), # Thinner stroke for elegance
                     ),
                     rx.fragment() 
                 ),
@@ -2000,14 +2050,13 @@ def kpi_card(title: str, value: str, trend: str, icon: str, color_scheme: str, b
                 align_items="center" if align == "center" else "start",
                 justify_content="center" if align == "center" else "start",
             ),
-            # If centered, maybe put icon above or hide it? Or keep it simple.
-            # Let's keep the trend line only if not inline
+            
             rx.cond(
                 not trend_inline,
                 rx.hstack(
                     rx.text(trend, color=trend_color, font_size="sm", font_weight="bold", text_align=align, width="100%"),
                     width="100%",
-                    justify_content=align, # align start or center
+                    justify_content=align, 
                 ),
                 rx.fragment()
             ),
@@ -2017,41 +2066,43 @@ def kpi_card(title: str, value: str, trend: str, icon: str, color_scheme: str, b
                 bottom_left is not None,
                 rx.flex(
                     rx.hstack(
-                        rx.icon(bottom_left_icon, size=16, color="black") if bottom_left_icon is not None else rx.fragment(),
-                        rx.text(bottom_left, font_size="xs", color="black", font_weight="bold"),
-                        trend_badge(bottom_left_trend, text_color="black", font_size="0.85em") if bottom_left_trend is not None else rx.fragment(),
+                        rx.icon(bottom_left_icon, size=16, color="gray.400") if bottom_left_icon is not None else rx.fragment(),
+                        rx.text(bottom_left, font_size="sm", color="white", font_weight="bold"),
+                        trend_badge(bottom_left_trend, font_size="0.75em") if bottom_left_trend is not None else rx.fragment(),
                         align="center",
-                        spacing="1"
+                        spacing="2"
                     ),
                     rx.spacer(),
                     rx.hstack(
-                        rx.icon(bottom_right_icon, size=16, color="black") if bottom_right_icon is not None else rx.fragment(),
-                        rx.text(bottom_right, font_size="xs", color="black", font_weight="bold"),
-                        trend_badge(bottom_right_trend, text_color="black", font_size="0.85em") if bottom_right_trend is not None else rx.fragment(),
+                        rx.icon(bottom_right_icon, size=16, color="gray.400") if bottom_right_icon is not None else rx.fragment(),
+                        rx.text(bottom_right, font_size="sm", color="white", font_weight="bold"),
+                        trend_badge(bottom_right_trend, font_size="0.75em") if bottom_right_trend is not None else rx.fragment(),
                         align="center",
-                        spacing="1"
+                        spacing="2"
                     ),
                     width="100%",
                     justify="between",
-                    padding_top="2",
-                    padding_x="6" # Increased padding as requested
+                    padding_top="4",
+                    border_top=f"1px solid {BORDER_COLOR}",
+                    margin_top="2"
                 ),
                 rx.fragment()
             ),
             
-            spacing="4",
+            spacing="3",
             align_items=align,
-            # removed width="100%" to let padding work naturally
         ),
-        padding="24px", 
+        padding="6", 
         bg=bg_color,
-        border=f"1px solid {color_scheme}" if bg_color != "rgba(255, 255, 255, 0.03)" else "1px solid rgba(255, 255, 255, 0.1)",
+        border=f"1px solid {BORDER_COLOR}",
         border_radius="xl",
         width="100%",
-        transition="transform 0.2s",
+        box_shadow="0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+        transition="all 0.2s",
         _hover={
             "transform": "translateY(-2px)",
-            "box_shadow": "lg",
+            "box_shadow": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+            "border_color": color_scheme
         },
     )
 
@@ -2222,102 +2273,121 @@ def sidebar_component() -> rx.Component:
     """The modern filter sidebar."""
     return rx.box(
         rx.vstack(
-            rx.hstack(
-                rx.hstack(
-                    rx.icon("filter", size=20, color=ACCENT_COLOR),
-                    rx.heading("Filters", size="4", color="white"),
-                    align="center", 
-                    spacing="2",
+            # Sidebar Header (Centered Dashboard + Period)
+            rx.box(
+                rx.vstack(
+                    rx.hstack(
+                         rx.icon("layout-dashboard", size=20, color=ACCENT_COLOR),
+                         rx.heading("DASHBOARD", size="3", color="white", font_weight="900", letter_spacing="0.1em"),
+                         align="center",
+                         spacing="3",
+                         justify="center"
+                     ),
+                     rx.center(
+                         rx.hstack(
+                             rx.icon("calendar-days", size=16, color="white"),
+                             rx.text("PERIOD", font_weight="900", color="white", font_size="xs", letter_spacing="0.1em"),
+                             align="center", spacing="2", justify="center"
+                         )
+                     ),
+                     spacing="2",
+                     align="center",
+                     justify="center",
+                     width="100%"
                 ),
-                rx.spacer(),
-                rx.button(
-                     rx.icon("x", size=18, color="white"),
-                     variant="ghost",
-                     size="1", 
-                     on_click=State.toggle_sidebar,
-                     color_scheme="gray"
+                
+                # Close Button (Absolute)
+                rx.box(
+                    rx.button(
+                         rx.icon("x", size=18, color="white"),
+                         variant="ghost",
+                         size="1", 
+                         on_click=State.toggle_sidebar,
+                         color_scheme="gray"
+                    ),
+                    position="absolute",
+                    top="0",
+                    right="0"
                 ),
+                
+                position="relative",
                 width="100%",
-                align="center",
                 margin_bottom="6",
-                padding_left="2",
-                padding_right="2"
+                padding_x="2"
             ),
             
-            # Date Range Filter (Material Style)
+            # Date Range Filter
             rx.vstack(
-                rx.hstack(
-                    rx.icon("calendar", size=18, color="cyan"),
-                    rx.text("DATE RANGE", font_weight="bold", color="gray.300", font_size="sm"),
-                    align="center", spacing="2", width="100%"
-                ),
                 # Vertical Layout
                 rx.vstack(
                     rx.box(
-                        rx.text("From", font_size="sm", color="gray.500", font_weight="bold", text_transform="uppercase", margin_bottom="1"),
+                        rx.text("FROM", font_size="xs", color="white", font_weight="900", margin_bottom="2", text_align="center", width="100%"),
                         rx.box(
                             rx.hstack(
-                                rx.icon("calendar", size=14, color="gray.400"),
-                                rx.text(rx.cond(State.start_date, State.start_date, "Select date"), color="white", font_size="sm"),
-                                spacing="2",
+                                rx.text(rx.cond(State.start_date, State.start_date, "Select Date"), color="white", font_size="sm", font_weight="medium"),
+                                rx.icon("chevron-down", size=14, color="gray.600"),
+                                width="100%",
                                 align="center",
-                                justify="center", # Centered
-                                width="100%"
+                                justify="center",
+                                spacing="2"
                             ),
-                            bg="#1A202C", 
-                            border="1px solid #4A5568",
+                            bg="rgba(255,255,255,0.03)", 
+                            border=f"1px solid {BORDER_COLOR}",
                             border_radius="md",
                             padding="3",
                             width="100%",
                             cursor="pointer",
                             on_click=lambda: State.open_picker("start"),
-                            _hover={"border_color": "cyan", "bg": "#2D3748"}, # enhanced hover
+                            _hover={"border_color": ACCENT_COLOR, "bg": "rgba(255,255,255,0.05)"},
                             transition="all 0.2s"
                         ),
                         width="100%"
                     ),
                     rx.box(
-                        rx.text("To", font_size="sm", color="gray.500", font_weight="bold", text_transform="uppercase", margin_bottom="1"),
+                        rx.text("TO", font_size="xs", color="white", font_weight="900", margin_bottom="2", text_align="center", width="100%"),
                         rx.box(
                              rx.hstack(
-                                rx.icon("calendar", size=14, color="gray.400"),
-                                rx.text(rx.cond(State.end_date, State.end_date, "Select date"), color="white", font_size="sm"),
-                                spacing="2",
+                                rx.text(rx.cond(State.end_date, State.end_date, "Select Date"), color="white", font_size="sm", font_weight="medium"),
+                                rx.icon("chevron-down", size=14, color="gray.600"),
+                                width="100%",
                                 align="center",
-                                justify="center", # Centered
-                                width="100%"
+                                justify="center",
+                                spacing="2"
                              ),
-                            bg="#1A202C",
-                            border="1px solid #4A5568",
+                            bg="rgba(255,255,255,0.03)",
+                            border=f"1px solid {BORDER_COLOR}",
                             border_radius="md",
                             padding="3",
                             width="100%",
                             cursor="pointer",
                              on_click=lambda: State.open_picker("end"),
-                             _hover={"border_color": "cyan", "bg": "#2D3748"},
+                             _hover={"border_color": ACCENT_COLOR, "bg": "rgba(255,255,255,0.05)"},
                              transition="all 0.2s"
                         ),
                         width="100%"
                     ),
                     width="100%",
-                    spacing="3" 
+                    spacing="4" 
                 ),
                 padding="0", 
                 width="100%",
-                margin_bottom="6" 
+                margin_bottom="8" 
             ),
             
             rx.accordion.root(
                 
                 # State Filter
                 rx.accordion.item(
-                    header=rx.hstack(
-                        rx.icon("map-pin", size=18, color="green"),
-                        rx.text("STATE", font_weight="bold", color="gray.300", font_size="sm"),
-                        align="center", spacing="2"
+                    header=rx.center(
+                        rx.hstack(
+                            rx.icon("map", size=16, color=ACCENT_COLOR),
+                            rx.text("REGION", font_weight="900", color="white", font_size="sm", letter_spacing="0.1em"),
+                            align="center", spacing="2", justify="center"
+                        ),
+                        width="100%"
                     ),
                     content=rx.vstack(
-                        rx.checkbox("Select All", on_change=State.toggle_all_states, color_scheme="green", size="1"),
+                        rx.checkbox("Select All", on_change=State.toggle_all_states, color_scheme="gray", size="1"),
                         rx.scroll_area(
                             rx.vstack(
                                 rx.foreach(
@@ -2326,33 +2396,35 @@ def sidebar_component() -> rx.Component:
                                         state,
                                         checked=State.selected_states.contains(state),
                                         on_change=lambda checked: State.toggle_state(state, checked),
-                                        color_scheme="green",
-                                        size="1"
-                                    ),
+                                        color_scheme="gray", 
+                                        size="1" 
+                                    )
                                 ),
-                                direction="column",
                                 spacing="2",
+                                align_items="start"
                             ),
-                            max_height="200px",
                             type="always",
                             scrollbars="vertical",
+                            style={"height": 150},
                         ),
                         spacing="2",
-                        padding_left="2"
+                        width="100%"
                     ),
-                    value="state",
-                    style={"_hover": {"bg": "rgba(255,255,255,0.02)"}}
+                    style={"background": "transparent", "border": "none"}
                 ),
-                
+
                 # Brand Filter
                 rx.accordion.item(
-                    header=rx.hstack(
-                        rx.icon("tag", size=18, color="purple"),
-                        rx.text("BRAND", font_weight="bold", color="gray.300", font_size="sm"),
-                        align="center", spacing="2"
+                    header=rx.center(
+                        rx.hstack(
+                            rx.icon("tag", size=16, color=ACCENT_COLOR),
+                            rx.text("BRAND", font_weight="900", color="white", font_size="sm", letter_spacing="0.1em"),
+                            align="center", spacing="2", justify="center"
+                        ),
+                        width="100%"
                     ),
                     content=rx.vstack(
-                        rx.checkbox("Select All", on_change=State.toggle_all_brands, color_scheme="purple", size="1"),
+                        rx.checkbox("Select All", on_change=State.toggle_all_brands, color_scheme="gray", size="1"),
                         rx.scroll_area(
                             rx.vstack(
                                 rx.foreach(
@@ -2361,34 +2433,36 @@ def sidebar_component() -> rx.Component:
                                         brand,
                                         checked=State.selected_brands.contains(brand),
                                         on_change=lambda checked: State.toggle_brand(brand, checked),
-                                        color_scheme="purple",
+                                        color_scheme="gray",
                                         size="1"
                                     ),
                                 ),
-                                direction="column",
                                 spacing="2",
+                                align_items="start"
                             ),
-                            max_height="200px",
                             type="always",
                             scrollbars="vertical",
+                            style={"height": 150},
                         ),
                         spacing="2",
-                        padding_left="2"
+                        width="100%"
                     ),
-                    value="brand",
-                    style={"_hover": {"bg": "rgba(255,255,255,0.02)"}}
+                    style={"background": "transparent", "border": "none"}
                 ),
                 
                 # Channel Filter
                 rx.accordion.item(
-                    header=rx.hstack(
-                        rx.icon("share-2", size=18, color="orange"),
-                        rx.text("CHANNEL", font_weight="bold", color="gray.300", font_size="sm"),
-                        align="center", spacing="2"
+                    header=rx.center(
+                        rx.hstack(
+                            rx.icon("share-2", size=16, color=ACCENT_COLOR),
+                            rx.text("CHANNEL", font_weight="900", color="white", font_size="sm", letter_spacing="0.1em"),
+                            align="center", spacing="2", justify="center"
+                        ),
+                        width="100%"
                     ),
                     content=rx.vstack(
-                        rx.checkbox("Select All", on_change=State.toggle_all_channels, color_scheme="orange", size="1"),
-                        rx.scroll_area( # Added scroll area just in case
+                        rx.checkbox("Select All", on_change=State.toggle_all_channels, color_scheme="gray", size="1"),
+                        rx.scroll_area(
                             rx.vstack(
                                 rx.foreach(
                                     State.channels,
@@ -2396,75 +2470,79 @@ def sidebar_component() -> rx.Component:
                                         channel,
                                         checked=State.selected_channels.contains(channel),
                                         on_change=lambda checked: State.toggle_channel(channel, checked),
-                                        color_scheme="orange",
+                                        color_scheme="gray",
                                         size="1"
                                     ),
                                 ),
-                                direction="column",
                                 spacing="2",
+                                align_items="start"
                             ),
-                            max_height="200px",
                             type="always",
                             scrollbars="vertical",
-                         ),
+                            style={"height": 150},
+                        ),
                         spacing="2",
-                        padding_left="2"
+                        width="100%"
                     ),
-                    value="channel",
-                    style={"_hover": {"bg": "rgba(255,255,255,0.02)"}}
+                    style={"background": "transparent", "border": "none"}
                 ),
-                
-                # Supply Type Filter
+
+               # Supply Type Filter
                 rx.accordion.item(
-                    header=rx.hstack(
-                        rx.icon("truck", size=18, color="red"),
-                        rx.text("SUPPLY TYPE", font_weight="bold", color="gray.300", font_size="sm"),
-                        align="center", spacing="2"
+                    header=rx.center(
+                        rx.hstack(
+                            rx.icon("truck", size=16, color=ACCENT_COLOR),
+                            rx.text("SUPPLY TYPE", font_weight="900", color="white", font_size="sm", letter_spacing="0.1em"),
+                            align="center", spacing="2", justify="center"
+                        ),
+                        width="100%"
                     ),
                     content=rx.vstack(
-                        rx.checkbox("Select All", on_change=State.toggle_all_supply, color_scheme="red", size="1"),
-                         rx.scroll_area( # Added scroll area just in case
+                        rx.checkbox("Select All", on_change=State.toggle_all_supply, color_scheme="gray", size="1"),
+                        rx.scroll_area(
                             rx.vstack(
                                 rx.foreach(
                                     State.supply_types,
-                                    lambda supply: rx.checkbox(
-                                        supply,
-                                        checked=State.selected_supply_types.contains(supply),
-                                        on_change=lambda checked: State.toggle_supply(supply, checked),
-                                        color_scheme="red",
+                                    lambda st: rx.checkbox(
+                                        st,
+                                        checked=State.selected_supply_types.contains(st),
+                                        on_change=lambda checked: State.toggle_supply(st, checked),
+                                        color_scheme="gray",
                                         size="1"
                                     ),
                                 ),
-                                direction="column",
                                 spacing="2",
+                                align_items="start"
                             ),
-                            max_height="200px",
                             type="always",
                             scrollbars="vertical",
+                            style={"height": 150},
                         ),
                         spacing="2",
-                        padding_left="2"
+                        width="100%"
                     ),
-                    value="supply",
-                    style={"_hover": {"bg": "rgba(255,255,255,0.02)"}}
+                    style={"background": "transparent", "border": "none"}
                 ),
                 
                 type="multiple",
                 collapsible=True,
                 width="100%",
-                variant="ghost", # Cleaner look than soft
+                variant="outline", # Clean variant
+                margin_top="16",
             ),
-            padding="6",
+            
             width="100%",
+            spacing="1",
+            padding_top="500px", # Added spacing from top edge
         ),
-        width=["100%", "280px"], # Slightly wider
-        min_width=["100%", "280px"],
+        width="280px", # Slightly wider for elegance
+        height="100vh", # Full height
         bg="#111111", # Darker background
-        height="100vh",
+        padding="6",
+        border_right="1px solid #333333",
         display=rx.cond(State.is_sidebar_open, "block", "none"), 
         position="sticky",
         top="0",
-        border_right="1px solid #333333",
         z_index="1000"
     )
 
@@ -2475,38 +2553,40 @@ def card_avg_monthly_sale():
     return rx.box(
         rx.vstack(
             rx.hstack(
-                rx.text("AVG. MONTHLY SALE", color="white", font_weight="bold", font_size="sm"),
-                rx.badge("↗ 14.9% Avg. Growth", color_scheme="green", variant="solid", border_radius="full", padding_x="2"),
+                rx.text("AVG. MONTHLY SALE", color="gray.400", font_weight="bold", font_size="xs", letter_spacing="0.1em"),
                 rx.spacer(),
-                rx.center(
-                    rx.text("₹", color="white", font_size="xl", font_weight="bold"),
-                    bg="rgba(255,255,255,0.2)",
-                    width="40px",
-                    height="40px",
-                    border_radius="full"
-                ),
+                rx.icon("chart-bar", color="#FF9966", size=20),
                 width="100%",
                 align="center",
             ),
-            rx.heading(State.average_monthly_sale, color="white", size="8", font_weight="bold"),
+            rx.hstack(
+                rx.heading(State.average_monthly_sale, color="white", size="8", font_weight="900", letter_spacing="-0.02em"),
+                rx.badge("↗ 14.9%", color_scheme="green", variant="surface", size="1"),
+                align="baseline",
+                spacing="3"
+            ),
             rx.spacer(),
             rx.hstack(
-                 rx.icon("briefcase", color="white", size=16),
-                 rx.text(State.avg_monthly_b2b, color="white", font_size="xs", font_weight="bold"),
+                 rx.icon("briefcase", color="gray.500", size=14),
+                 rx.text(State.avg_monthly_b2b, color="gray.300", font_size="xs", font_weight="bold"),
                  rx.spacer(),
-                 rx.icon("shopping-cart", color="white", size=16),
-                 rx.text(State.avg_monthly_b2c, color="white", font_size="xs", font_weight="bold"),
+                 rx.icon("shopping-cart", color="gray.500", size=14),
+                 rx.text(State.avg_monthly_b2c, color="gray.300", font_size="xs", font_weight="bold"),
                  width="100%",
-                 align="center"
+                 align="center",
+                 padding_top="4",
+                 border_top=f"1px solid {BORDER_COLOR}"
             ),
             height="100%",
             justify="between",
             align_items="start",
-            spacing="2"
+            spacing="1"
         ),
-        bg="linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)", # Orange Gradient
+        bg=CARD_BG,
+        border=f"1px solid {BORDER_COLOR}",
+        border_left="4px solid #FF9966", # Orange Accent
         border_radius="xl",
-        padding="24px", # Explicit padding
+        padding="24px",
         width="100%",
         height="180px",
         box_shadow="lg"
@@ -2516,37 +2596,35 @@ def card_daily_velocity():
     return rx.box(
          rx.vstack(
             rx.hstack(
-                rx.text("DAILY SALES VELOCITY", color="white", font_weight="bold", font_size="sm"),
+                rx.text("DAILY SALES VELOCITY", color="gray.400", font_weight="bold", font_size="xs", letter_spacing="0.1em"),
                 rx.spacer(),
-                rx.center(
-                    rx.icon("zap", color="white", size=20),
-                    bg="rgba(255,255,255,0.2)",
-                    width="40px",
-                    height="40px",
-                    border_radius="full"
-                ),
+                rx.icon("zap", color="#63b3ed", size=20),
                 width="100%",
                 align="center",
             ),
-            rx.heading(State.daily_sales_velocity_data["total"], color="white", size="8", font_weight="bold"),
+            rx.heading(State.daily_sales_velocity_data["total"], color="white", size="8", font_weight="900", letter_spacing="-0.02em"),
             rx.spacer(),
             rx.hstack(
-                 rx.icon("briefcase", color="white", size=16),
-                 rx.text("B2B: ", State.daily_sales_velocity_data["b2b"], color="white", font_size="xs", font_weight="bold"),
+                 rx.icon("briefcase", color="gray.500", size=14),
+                 rx.text(State.daily_sales_velocity_data["b2b"], color="gray.300", font_size="xs", font_weight="bold"),
                  rx.spacer(),
-                 rx.icon("shopping-cart", color="white", size=16),
-                 rx.text("B2C: ", State.daily_sales_velocity_data["b2c"], color="white", font_size="xs", font_weight="bold"),
+                 rx.icon("shopping-cart", color="gray.500", size=14),
+                 rx.text(State.daily_sales_velocity_data["b2c"], color="gray.300", font_size="xs", font_weight="bold"),
                  width="100%",
-                 align="center"
+                 align="center",
+                 padding_top="4",
+                 border_top=f"1px solid {BORDER_COLOR}"
             ),
             height="100%",
             justify="between",
             align_items="start",
-            spacing="2"
+            spacing="1"
         ),
-        bg="linear-gradient(135deg, #00C6FF 0%, #0072FF 100%)", # Blue Gradient
+        bg=CARD_BG,
+        border=f"1px solid {BORDER_COLOR}",
+        border_left="4px solid #63b3ed", # Blue Accent
         border_radius="xl",
-        padding="24px", # Explicit padding
+        padding="24px",
         width="100%",
         height="180px",
         box_shadow="lg"
@@ -2559,53 +2637,53 @@ def card_returns_invoices():
                 # Left: Returns
                 rx.box(
                     rx.vstack(
-                        rx.hstack(rx.icon("rotate-ccw", color="white", size=16), rx.text("RETURNS", color="white", font_weight="bold", font_size="xs")),
-                        rx.heading(State.return_metrics["count"], color="white", size="6", font_weight="bold"),
-                        rx.text("Rate: ", State.return_metrics["rate_pct"], color="white", font_size="xs"),
-                        rx.text(State.return_metrics["val_cr"], color="white", font_size="xs"),
+                        rx.hstack(rx.icon("rotate-ccw", color="red", size=14), rx.text("RETURNS", color="gray.400", font_weight="bold", font_size="xs", letter_spacing="0.05em")),
+                        rx.heading(State.return_metrics["count"], color="white", size="6", font_weight="900"),
+                        rx.hstack(
+                             rx.text(State.return_metrics["rate_pct"], color="red", font_size="xs", font_weight="bold"),
+                             rx.text(State.return_metrics["val_cr"], color="gray.500", font_size="xs"),
+                             spacing="2"
+                        ),
                         align_items="start",
                         spacing="1",
                         width="100%"
                     ),
-                    bg="rgba(0, 0, 0, 0.2)", # Darker tone for differentiation
-                    padding="12px",
-                    border_radius="lg",
                     flex="1",
                 ),
-                # No divider, just visual separation via background
+                # Vertical Separator
+                rx.divider(orientation="vertical", height="auto", margin_x="4", border_color=BORDER_COLOR),
                  # Right: Invoices
                 rx.box(
                     rx.vstack(
-                        rx.hstack(rx.icon("file-text", color="white", size=16), rx.text("INVOICES", color="white", font_weight="bold", font_size="xs")),
-                        rx.heading(State.invoice_stats["count"], color="white", size="6", font_weight="bold"),
-                        rx.text("Daily Avg", color="white", font_size="xs"),
-                        rx.text(State.invoice_stats["daily_avg"], color="white", font_size="xs", font_weight="bold"),
+                        rx.hstack(rx.icon("file-text", color="gray.400", size=14), rx.text("INVOICES", color="gray.400", font_weight="bold", font_size="xs", letter_spacing="0.05em")),
+                        rx.heading(State.invoice_stats["count"], color="white", size="6", font_weight="900"),
+                        rx.hstack(
+                            rx.text("Avg", color="gray.500", font_size="xs"),
+                            rx.text(State.invoice_stats["daily_avg"], color="white", font_size="xs", font_weight="bold"),
+                            spacing="2"
+                        ),
                         align_items="start",
                         spacing="1",
                         width="100%"
                     ),
-                    bg="rgba(0, 0, 0, 0.2)", # Darker tone for differentiation
-                    padding="12px",
-                    border_radius="lg",
-                    flex="1.2", # Give it slightly more space or equal
+                    flex="1.2", 
                 ),
                 width="100%",
-                spacing="2", # Gap between them
-                align_items="stretch" # Stretch to match height
+                align_items="stretch" 
             ),
-            rx.separator(color_scheme="gray", opacity=0.3),
-            rx.text("B2C RETURN RATE (CHANNEL)", color="white", font_weight="bold", font_size="xs", width="100%"),
+            rx.separator(color_scheme="gray", opacity=0.1),
+            rx.text("B2C RETURN RATE", color="gray.500", font_weight="bold", font_size="10px", width="100%", letter_spacing="0.1em"),
             # Small Table for Channel Returns
             rx.vstack(
                 rx.foreach(
                     State.return_breakdown,
                     lambda item: rx.hstack(
-                        rx.text(item["channel"], color="white", font_size="xs"),
+                        rx.text(item["channel"], color="gray.300", font_size="xs"),
                         rx.spacer(),
-                        rx.badge(item["formatted_rate"], color_scheme="gray", variant="surface", size="1"),
+                        rx.badge(item["formatted_rate"], color_scheme="red", variant="surface", size="1"),
                         width="100%",
                         padding_y="1",
-                        border_bottom="1px solid rgba(255,255,255,0.1)"
+                        border_bottom=f"1px dashed {BORDER_COLOR}"
                     )
                 ),
                 width="100%",
@@ -2614,7 +2692,9 @@ def card_returns_invoices():
             spacing="3",
             width="100%"
         ),
-        bg="linear-gradient(135deg, #e53935 0%, #e35d5b 100%)", # Red Gradient
+        bg=CARD_BG,
+        border=f"1px solid {BORDER_COLOR}",
+        border_left="4px solid #e53935", # Red Accent
         border_radius="xl",
         padding="24px", # Explicit padding
         width="100%",
@@ -2624,15 +2704,15 @@ def card_returns_invoices():
 def card_pareto():
     return rx.box(
         rx.vstack(
-
                 rx.center(
                      rx.vstack(
-                        rx.text("PARETO (80% SALE)", color="white", font_weight="bold", font_size="sm"),
+                        rx.text("PARETO (80% SALE)", color="gray.400", font_weight="bold", font_size="xs", letter_spacing="0.1em"),
                         rx.heading(
                             State.pareto_stats["count_80"], 
                             color="white", 
                             size="8", 
-                            font_weight="bold"
+                            font_weight="900",
+                            letter_spacing="-0.02em"
                         ),
                         spacing="1",
                         align_items="center",
@@ -2646,28 +2726,27 @@ def card_pareto():
                             State.pareto_top_products,
                             lambda item: rx.hstack(
                                 rx.badge(item["rank"], variant="solid", color_scheme="yellow", border_radius="full", size="1"),
-                                rx.text(item["name"], color="white", font_size="xs", no_of_lines=1, width="40%"), # Fixed width for name
+                                rx.text(item["name"], color="gray.200", font_size="xs", no_of_lines=1, width="40%"), 
                                 rx.spacer(),
                                 rx.text(item["value_cr"], color="white", font_size="xs", font_weight="bold"),
                                 rx.spacer(),
-                                rx.text(item["pct"], color="white", font_size="xs", font_weight="bold"),
+                                rx.text(item["pct"], color="gray.500", font_size="xs", font_weight="bold"),
                                 width="100%",
                                 padding_y="1",
-                                border_bottom="1px solid rgba(255,255,255,0.1)"
+                                border_bottom=f"1px solid {BORDER_COLOR}"
                             )
                         ),
                         width="100%",
                         spacing="1"
                     ),
                     width="100%",
-                    bg="rgba(255,255,255,0.1)",
+                    bg="rgba(255,255,255,0.02)",
                     border_radius="md",
                     padding="4"
                 ),
             rx.text(
-                rx.text.span("Products driving 80% of sales ", font_weight="bold"),
-                rx.text.span(State.pareto_stats["pct_catalog"], font_weight="bold"),
-                color="white", 
+                rx.text.span("Products driving 80% of sales ", font_weight="bold", color="gray.400"),
+                rx.text.span(State.pareto_stats["pct_catalog"], font_weight="bold", color="white"),
                 font_size="xs", 
                 text_align="center",
                 width="100%"
@@ -2675,9 +2754,11 @@ def card_pareto():
             spacing="3",
             width="100%"
         ),
-        bg="linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%)", # Purple Gradient
+        bg=CARD_BG,
+        border=f"1px solid {BORDER_COLOR}",
+        border_left="4px solid #8E2DE2", # Purple Accent
         border_radius="xl",
-        padding="24px", # Explicit padding
+        padding="24px", 
         width="100%",
         box_shadow="lg"
     )
@@ -2690,11 +2771,12 @@ def courier_performance_card():
                 rx.hstack(
                     rx.center(
                         rx.icon("truck", color="#3182CE", size=20),
-                        bg="#EBF8FF", # Light blue bg for icon
+                        bg="rgba(49, 130, 206, 0.1)", # Dark Blue tint
                         padding="2",
-                        border_radius="md"
+                        border_radius="md",
+                        border="1px solid #3182CE"
                     ),
-                    rx.text("Courier Performance(Only for Rajnigandha.com)", font_weight="bold", color=TEXT_COLOR, font_size="md"),
+                    rx.text("Courier Performance(Only for Rajnigandha.com)", font_weight="900", color=TEXT_COLOR, font_size="md", letter_spacing="0.05em"),
                     align="center",
                     spacing="3",
                 ),
@@ -2707,18 +2789,19 @@ def courier_performance_card():
                     rx.vstack(
                         rx.hstack(
                             rx.icon("indian-rupee", size=14, color="gray"),
-                            rx.text("AVG DELIVERY COST", font_size="xs", font_weight="bold", color="gray.400"),
+                            rx.text("AVG DELIVERY COST", font_size="xs", font_weight="bold", color="gray.400", letter_spacing="0.1em"),
                             spacing="2",
                             align="center"
                         ),
-                        rx.heading(State.courier_metrics["avg_cost"], size="6", color=TEXT_COLOR, font_weight="bold"),
+                        rx.heading(State.courier_metrics["avg_cost"], size="6", color="white", font_weight="900"),
                         rx.text("per shipment", font_size="xs", color="gray.500"),
                         spacing="1",
                         align_items="center"
                     ),
-                    bg="rgba(255,255,255,0.03)", 
+                    bg="rgba(255,255,255,0.02)", 
                     padding="4", 
                     border_radius="lg",
+                    border=f"1px solid {BORDER_COLOR}",
                     width="100%"
                 ),
                 # Card 2: Avg Delivery Time
@@ -2726,58 +2809,59 @@ def courier_performance_card():
                      rx.vstack(
                         rx.hstack(
                             rx.icon("clock", size=14, color="gray"),
-                            rx.text("AVERAGE DELIVERY TIME", font_size="xs", font_weight="bold", color="gray.400"),
+                            rx.text("AVERAGE DELIVERY TIME", font_size="xs", font_weight="bold", color="gray.400", letter_spacing="0.1em"),
                             spacing="2",
                             align="center"
                         ),
-                        rx.heading(State.courier_metrics["avg_time"], size="6", color=TEXT_COLOR, font_weight="bold"),
+                        rx.heading(State.courier_metrics["avg_time"], size="6", color="white", font_weight="900"),
                         rx.text("pickup to delivered", font_size="xs", color="gray.500"),
                         spacing="1",
                         align_items="center"
                     ),
-                    bg="rgba(255,255,255,0.03)", 
+                    bg="rgba(255,255,255,0.02)", 
                     padding="4", 
                     border_radius="lg",
+                    border=f"1px solid {BORDER_COLOR}",
                      width="100%"
                 ),
                 # Card 3: Successful Delivery Rate (Green)
                 rx.box(
                      rx.vstack(
                         rx.hstack(
-                            rx.icon("circle_check", size=14, color="green"),
-                            rx.text("SUCCESSFUL DELIVERY RATE", font_size="xs", font_weight="bold", color="green"),
+                            rx.icon("circle_check", size=14, color="#48BB78"),
+                            rx.text("SUCCESSFUL DELIVERY RATE", font_size="xs", font_weight="bold", color="#48BB78", letter_spacing="0.1em"),
                             spacing="2",
                             align="center"
                         ),
-                        rx.heading(State.courier_metrics["success_rate"], size="6", color="#047857", font_weight="bold"), # Darker green text
-                        rx.text("delivery rate", font_size="xs", color="green"),
+                        rx.heading(State.courier_metrics["success_rate"], size="6", color="white", font_weight="900"), 
+                        rx.text("delivery rate", font_size="xs", color="gray.500"),
                         spacing="1",
                         align_items="center"
                     ),
-                    bg="#F0FFF4", # Light Green (Mint)
+                    bg="rgba(72, 187, 120, 0.05)", # Dark Green tint
                     padding="4", 
                     border_radius="lg",
-                    border="1px solid #C6F6D5",
+                    border="1px solid #2F855A",
                      width="100%"
                 ),
                 # Card 4: Return Rate (Red)
                  rx.box(
                      rx.vstack(
                         rx.hstack(
-                            rx.icon("rotate_cw", size=14, color="red"),
-                            rx.text("RETURN RATE", font_size="xs", font_weight="bold", color="red"),
+                            rx.icon("rotate_cw", size=14, color="#F56565"),
+                            rx.text("RETURN RATE", font_size="xs", font_weight="bold", color="#F56565", letter_spacing="0.1em"),
                             spacing="2",
                             align="center"
                         ),
-                        rx.heading(State.courier_metrics["return_rate"], size="6", color="#C53030", font_weight="bold"), # Darker red text
-                        rx.text("of total orders", font_size="xs", color="red"),
+                        rx.heading(State.courier_metrics["return_rate"], size="6", color="white", font_weight="900"), 
+                        rx.text("of total orders", font_size="xs", color="gray.500"),
                         spacing="1",
                         align_items="center"
                     ),
-                    bg="#FFF5F7", # Pinkish (Lavender Blush)
+                    bg="rgba(245, 101, 101, 0.05)", # Dark Red tint
                     padding="4", 
                     border_radius="lg",
-                    border="1px solid #FED7E2",
+                    border="1px solid #9B2C2C",
                      width="100%"
                 ),
                 columns={"initial": "1", "sm": "1", "lg": "2"},
@@ -2787,11 +2871,11 @@ def courier_performance_card():
              width="100%"
         ),
         bg=CARD_BG,
-        padding="24px", # Explicit padding to match other cards
+        padding="24px", 
         border_radius="xl",
         box_shadow="lg",
         width="100%",
-        border="1px solid #4A5568"
+        border=f"1px solid {BORDER_COLOR}"
     )
 
 
@@ -3215,7 +3299,7 @@ def index() -> rx.Component:
                             trend=State.total_sales_trend,
                             icon="dollar-sign",
                             color_scheme="#48BB78",
-                            bg_color="#48BB78", 
+                            # bg_color="#48BB78", # REMOVED for dark theme consistency
                             align="center",
                             value_size="9", 
                             title_size="8", 
@@ -3223,9 +3307,9 @@ def index() -> rx.Component:
                             bottom_right=State.total_b2c_sales,
                             bottom_left_trend=State.b2b_trend,
                             bottom_right_trend=State.b2c_trend,
-                            bottom_left_icon="briefcase", # Represents B2B/Trolly
-                            bottom_right_icon="shopping-cart", # Represents B2C
-                            trend_inline=True, # Trend in bracket inline
+                            bottom_left_icon="briefcase", 
+                            bottom_right_icon="shopping-cart", 
+                            trend_inline=True, 
                         ),
                         rx.grid(
                             card_avg_monthly_sale(),
@@ -3272,31 +3356,35 @@ def index() -> rx.Component:
                     
                     # Charts Row 1
                     rx.grid(
-                        rx.card(
+                        rx.box(
                             rx.vstack(
                                 rx.heading("Monthly Sales Trend (Value in Crore)", size="4", color=TEXT_COLOR, width="100%", text_align="center"),
                                 rx.plotly(data=State.monthly_sales_chart, height="400px"),
                                 width="100%",
                                 align="center",
                             ),
-                            bg=CARD_BG,
+                            bg="#000000",
                             box_shadow="lg",
-                             border="1px solid #4A5568",
+                            border="1px solid #4A5568",
+                            border_radius="xl",
+                            padding="4"
                         ),
                         
                         # Added Channel Wise Sale (Donut Chart)
                         channel_sales_card(),
                         
-                        rx.card(
+                        rx.box(
                             rx.vstack(
                                 rx.heading("Sales by State Top -10 Distribution (Value in Crore)", size="4", color=TEXT_COLOR, width="100%", text_align="center"),
                                 rx.plotly(data=State.state_sales_chart, height="580px"),
                                 width="100%",
                                 align="center",
                             ),
-                            bg=CARD_BG,
+                            bg="#000000",
                             box_shadow="lg",
-                             border="1px solid #4A5568",
+                            border="1px solid #4A5568",
+                            border_radius="xl",
+                            padding="4"
                         ),
                         columns="1",
                         spacing="4",
@@ -3305,7 +3393,7 @@ def index() -> rx.Component:
                     
                     # Charts Row 2
                     rx.grid(
-                        rx.card(
+                        rx.box(
                             rx.vstack(
                                 rx.heading("Sales by Product - Top 5 (Value in Crore)", size="4", color=TEXT_COLOR, width="100%", text_align="center"),
 
@@ -3313,20 +3401,24 @@ def index() -> rx.Component:
                                 width="100%",
                                 align="center",
                             ),
-                            bg=CARD_BG,
+                            bg="#000000",
                             box_shadow="lg",
-                             border="1px solid #4A5568",
+                            border="1px solid #4A5568",
+                            border_radius="xl",
+                            padding="4"
                         ),
-                         rx.card(
+                         rx.box(
                             rx.vstack(
                                 rx.heading("Sales by Supply Type (Value in Crore)", size="4", color=TEXT_COLOR, width="100%", text_align="center"),
                                 rx.plotly(data=State.supply_sales_chart, height="580px"),
                                 width="100%",
                                 align="center",
                             ),
-                            bg=CARD_BG,
+                            bg="#000000",
                             box_shadow="lg",
-                             border="1px solid #4A5568",
+                            border="1px solid #4A5568",
+                            border_radius="xl",
+                            padding="4"
                         ),
                         columns="1",
                         spacing="4",
@@ -3497,63 +3589,65 @@ app = rx.App(
         appearance="dark", 
         has_background=True, 
         radius="large", 
-        accent_color="blue",
+        accent_color="amber", # Gold/Amber accent
         gray_color="slate",
-    )
+    ),
+    stylesheets=[
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap",
+    ],
+    style={
+        "font_family": "Inter, sans-serif",
+        "background_color": "#000000",
+    }
 )
 app.add_page(index, title="Sales Dashboard")
 def monthly_summary_table_v2() -> rx.Component:
-    # Style constants matching the screenshot
-    TITLE_BG = "#F6AD55" # Orange
-    COL_HEADER_BG = "#2D3748" # Dark Grey
-    ROW_BG = "white"
-    FOOTER_BG = "#C6F6D5" # Light Green
-    BORDER_COLOR = "#E2E8F0" # Light border for rows
     MONTH_COL_WIDTH = "110px"
 
     return rx.box(
         # 1. Main Title Bar
         rx.flex(
             rx.box(
-                rx.text("Monthly Summary of Gross Sale Value (Channel wise)", font_size="md", font_weight="bold", color="black", text_align="center", width="100%"),
-                rx.text("Breakdown by Channel and Top 5 States", font_size="sm", color="black", text_align="center", width="100%"),
+                rx.text(f"Monthly Summary of Gross Sale Value (Channel wise) {State.table_date_range_title}", font_size="md", font_weight="900", color="white", letter_spacing="0.05em", text_align="center", width="100%"),
+                rx.box(height="12px"), # Gap between title and subtitle
+                rx.text("Breakdown by Channel and Top 5 States", font_size="xs", font_weight="bold", color="gray.400", letter_spacing="0.05em", text_align="center", width="100%"),
+                rx.box(height="12px"), # Extra spacing
                 width="100%",
             ),
             align="center",
             justify="center",
-            padding="3",
-            bg=TITLE_BG,
-            border_top_left_radius="lg",
-            border_top_right_radius="lg",
-            border="1px solid #4A5568",
+            padding="4",
+            bg=CARD_BG,
+            border_bottom=f"1px solid {BORDER_COLOR}",
+            border_top_left_radius="xl",
+            border_top_right_radius="xl",
         ),
         
         # 2. Table Container
         rx.box(
             # HEADER ROW
             rx.flex(
-                rx.box(rx.text("Channel / State", font_weight="bold", color="white", font_size="sm"), width="300px", min_width="300px", max_width="300px", padding_left="4", padding_y="3", border_right="1px solid gray", overflow="hidden"),
+                rx.box(rx.text("CHANNEL / REGION", font_weight="bold", color="gray.400", font_size="9px", letter_spacing="0.1em"), width="240px", min_width="240px", max_width="240px", padding_left="4", padding_y="3", border_right=f"1px solid {BORDER_COLOR}"),
                 rx.foreach(
                     State.summary_table_columns,
                     lambda col: rx.flex(
-                        rx.text(col, font_weight="bold", color="white", font_size="sm", text_align="center", width="100%"),
+                        rx.text(col, font_weight="bold", color="gray.400", font_size="9px", text_align="center", width="100%", letter_spacing="0.1em"),
                         width=MONTH_COL_WIDTH,
                         min_width=MONTH_COL_WIDTH,
                         max_width=MONTH_COL_WIDTH,
                         flex="none", 
                         padding_y="3", 
-                        border_right="1px solid gray", 
+                        border_right=f"1px solid {BORDER_COLOR}", 
                         justify="center", 
                         align="center",
                         overflow="hidden"
                     )
                 ),
-                rx.box(rx.text("Grand Total", font_weight="bold", color="white", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="3", overflow="hidden"),
-                bg=COL_HEADER_BG,
+                rx.box(rx.text("TOTAL", font_weight="bold", color="white", font_size="9px", text_align="center", letter_spacing="0.1em"), width="140px", min_width="140px", max_width="140px", padding_y="3", overflow="hidden", bg="#064E3B"),
+                bg="#064E3B",
                 width="100%",
                 align="center",
-                border_left="1px solid #4A5568", 
-                border_right="1px solid #4A5568",
+                border_bottom=f"1px solid {BORDER_COLOR}",
             ),
             
             # BODY ROWS
@@ -3566,25 +3660,25 @@ def monthly_summary_table_v2() -> rx.Component:
                             row.is_total,
                              # FOOTER ROW (Grand Total)
                              rx.flex(
-                                rx.box(rx.text(row.channel, font_weight="bold", color="black", font_size="sm"), width="300px", min_width="300px", max_width="300px", padding_left="4", padding_y="3", border_right=f"1px solid {BORDER_COLOR}", overflow="hidden"),
+                                 rx.box(rx.text(row.channel, font_weight="900", color="white", font_size="sm", letter_spacing="0.05em", text_transform="capitalize"), width="240px", min_width="240px", max_width="240px", padding_left="4", padding_y="3", border_right=f"1px solid {BORDER_COLOR}", overflow="hidden"),
                                 rx.foreach(
                                     row.monthly_values,
                                     lambda m, i: rx.flex(
-                                        rx.text(m.value, color="black", font_size="sm", text_align="center", width="100%", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"), 
+                                        rx.text(m.value, color="white", font_size="9px", font_weight="medium", text_align="center", width="100%"),  
                                         width=MONTH_COL_WIDTH,
                                         min_width=MONTH_COL_WIDTH,
                                         max_width=MONTH_COL_WIDTH,
                                         flex="none", 
                                         padding_y="3", 
                                         border_right=f"1px solid {BORDER_COLOR}", 
-                                        bg=rx.cond(i % 2 == 0, "white", "#C6F6D5"), # Darker Green Shading (Green 100)
+                                        bg=rx.cond(i % 2 == 0, "rgba(255,255,255,0.03)", "rgba(255,255,255,0.01)"),
                                         justify="center",
                                         align="center",
                                         overflow="hidden"
                                     )
                                 ),
-                                    rx.box(rx.text(row.total_value, font_weight="bold", color="black", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="3", overflow="hidden"),
-                                bg=FOOTER_BG,
+                                    rx.box(rx.text(row.total_value, font_weight="900", color="#22c55e", font_size="sm", text_align="center"), width="140px", min_width="140px", max_width="140px", padding_y="3", overflow="hidden", bg="#000000"), # Black for total column
+                                bg="#064E3B", # Dark Green for Total ROW
                                 width="100%",
                                 align="center",
                                 border_top=f"1px solid {BORDER_COLOR}",
@@ -3596,14 +3690,14 @@ def monthly_summary_table_v2() -> rx.Component:
                                         rx.flex(
                                             rx.box(
                                                 rx.hstack(
-                                                    rx.icon("chevron-down", size=16, color="black"),
-                                                    rx.text(row.channel, font_weight="bold", color="black", font_size="sm", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"),
+                                                    rx.icon("chevron-down", size=16, color="white"),
+                                                    rx.text(row.channel, font_weight="bold", color="white", font_size="9px", white_space="nowrap", text_overflow="ellipsis", overflow="hidden", text_transform="capitalize"),
                                                     spacing="2",
                                                     align="center"
                                                 ),
-                                                width="300px", 
-                                                min_width="300px",
-                                                max_width="300px",
+                                                width="240px", 
+                                                min_width="240px",
+                                                max_width="240px",
                                                 padding_left="2",
                                                 padding_y="3",
                                                 border_right=f"1px solid {BORDER_COLOR}",
@@ -3612,24 +3706,24 @@ def monthly_summary_table_v2() -> rx.Component:
                                             rx.foreach(
                                                 row.monthly_values,
                                                 lambda m, i: rx.flex(
-                                                    rx.text(m.value, color="black", font_size="sm", text_align="center", width="100%", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"), 
+                                                    rx.text(m.value, color="white", font_size="9px", text_align="center", width="100%", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"),  
                                                     width=MONTH_COL_WIDTH,
                                                     min_width=MONTH_COL_WIDTH,
                                                     max_width=MONTH_COL_WIDTH,
                                                     flex="none",
                                                     padding_y="3", 
                                                     border_right=f"1px solid {BORDER_COLOR}", 
-                                                    bg=rx.cond(i % 2 == 0, "white", "#C6F6D5"), # Darker Green Shading (Green 100)
+                                                    bg=rx.cond(i % 2 == 0, "transparent", "rgba(255,255,255,0.02)"),
                                                     justify="center",
                                                     align="center",
                                                     overflow="hidden"
                                                 )
                                             ),
-                                                rx.box(rx.text(row.total_value, font_weight="bold", color="black", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="3", overflow="hidden"),
+                                                rx.box(rx.text(row.total_value, font_weight="bold", color="white", font_size="9px", text_align="center"), width="140px", min_width="140px", max_width="140px", padding_y="3", overflow="hidden", bg="#000000"), 
                                             width="100%",
                                             align="center",
-                                            bg=ROW_BG,
-                                            _hover={"bg": "gray.50"}
+                                            bg="transparent",
+                                            _hover={"bg": "rgba(255,255,255,0.03)"}
                                         ),
                                         padding="0",
                                         _hover={"bg": "transparent"},
@@ -3640,10 +3734,10 @@ def monthly_summary_table_v2() -> rx.Component:
                                                 row.children,
                                                 lambda child: rx.flex(
                                                     rx.box(
-                                                        rx.text(child.state, color="gray", font_size="sm", padding_left="8"), 
-                                                        width="300px", 
-                                                        min_width="300px",
-                                                        max_width="300px",
+                                                        rx.text(child.state, color="gray.400", font_size="9px", padding_left="8"),  
+                                                        width="240px", 
+                                                        min_width="240px",
+                                                        max_width="240px",
                                                         padding_y="2", 
                                                         border_right=f"1px solid {BORDER_COLOR}",
                                                         overflow="hidden"
@@ -3651,24 +3745,24 @@ def monthly_summary_table_v2() -> rx.Component:
                                                     rx.foreach(
                                                         child.monthly_values,
                                                         lambda m, i: rx.flex(
-                                                            rx.text(m.value, color="gray", font_size="sm", text_align="center", width="100%", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"), 
+                                                            rx.text(m.value, color="gray.400", font_size="9px", text_align="center", width="100%", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"),  
                                                             width=MONTH_COL_WIDTH,
                                                             min_width=MONTH_COL_WIDTH,
                                                             max_width=MONTH_COL_WIDTH,
                                                             flex="none", 
                                                             padding_y="2", 
                                                             border_right=f"1px solid {BORDER_COLOR}", 
-                                                            bg=rx.cond(i % 2 == 0, "gray.50", "#C6F6D5"), # Darker Green Shading (Green 100)
+                                                            bg=rx.cond(i % 2 == 0, "rgba(0,0,0,0.2)", "rgba(0,0,0,0.3)"), 
                                                             justify="center",
                                                             align="center",
                                                             overflow="hidden"
                                                         )
                                                     ),
-                                                    rx.box(rx.text(child.total_value, color="gray", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="2", overflow="hidden"),
-                                                    bg="gray.50",
+                                                    rx.box(rx.text(child.total_value, color="gray.400", font_size="9px", text_align="center"), width="140px", min_width="140px", max_width="140px", padding_y="2", overflow="hidden", bg="#000000"),
+                                                    bg="rgba(0,0,0,0.4)",
                                                     width="100%",
                                                     align="center",
-                                                    border_top="1px dotted gray",
+                                                    border_top=f"1px dotted {BORDER_COLOR}",
                                                 )
                                             ),
                                             width="100%",
@@ -3687,7 +3781,7 @@ def monthly_summary_table_v2() -> rx.Component:
                         ),
                         width="100%",
                         border_bottom=f"1px solid {BORDER_COLOR}",
-                        bg=ROW_BG
+                        bg="transparent"
                     )
                 ),
                 width="100%",
@@ -3698,60 +3792,55 @@ def monthly_summary_table_v2() -> rx.Component:
         ),
         bg="transparent",
         width="100%",
-        min_width="1290px", # Minimum to fit columns (300 + 110*9)
+        min_width="1230px", # Corrected width for 240+140+cols
         box_shadow="lg",
     )
 
 def monthly_sales_return_table() -> rx.Component:
-    # Colors matching screenshot (Red Theme)
-    TITLE_BG = "#E53E3E" # Red 600
-    COL_HEADER_BG = "#2D3748"
-    ROW_BG = "white"
-    FOOTER_BG = "#FED7E2" # Light Pink/Red
-    BORDER_COLOR = "#E2E8F0"
     MONTH_COL_WIDTH = "110px"
 
     return rx.box(
         # 1. Main Title Bar
         rx.flex(
             rx.box(
-                rx.text("Monthly Sales Return (Channel wise)", font_size="md", font_weight="bold", color="white", text_align="center", width="100%"),
+                rx.text(f"Monthly Sales Return (Channel wise) {State.table_date_range_title}", font_size="md", font_weight="900", color="white", letter_spacing="0.05em", text_align="center", width="100%"),
                 width="100%",
             ),
             align="center",
             justify="center",
-            padding="3",
-            bg=TITLE_BG,
-            border_top_left_radius="lg",
-            border_top_right_radius="lg",
-            border="1px solid #4A5568",
+            padding="4",
+            bg=CARD_BG,
+            border_bottom=f"1px solid {BORDER_COLOR}",
+            border_top_left_radius="xl",
+            border_top_right_radius="xl",
         ),
         
         rx.box(
             # HEADER ROW
             rx.flex(
-                rx.box(rx.text("Channel", font_weight="bold", color="white", font_size="sm"), width="300px", min_width="300px", max_width="300px", padding_left="4", padding_y="3", border_right="1px solid gray", overflow="hidden"),
+                rx.box(rx.text("CHANNEL", font_weight="bold", color="gray.400", font_size="9px", letter_spacing="0.1em"), width="240px", min_width="240px", max_width="240px", padding_left="4", padding_y="3", border_right="1px solid rgba(255,255,255,0.05)"),
                 rx.foreach(
                     State.summary_table_columns,
-                    lambda col: rx.flex(
-                        rx.text(col, font_weight="bold", color="white", font_size="sm", text_align="center", width="100%"),
+                    lambda col, i: rx.flex(
+                        rx.text(col, font_weight="bold", color="gray.400", font_size="9px", text_align="center", width="100%", letter_spacing="0.1em"),
                         width=MONTH_COL_WIDTH,
                         min_width=MONTH_COL_WIDTH,
                         max_width=MONTH_COL_WIDTH,
                         flex="none", 
                         padding_y="3", 
-                        border_right="1px solid gray", 
+                        border_right="1px solid rgba(255,255,255,0.05)", 
+                        bg=rx.cond(i % 2 == 0, "transparent", "rgba(255,255,255,0.03)"),
                         justify="center", 
                         align="center",
                         overflow="hidden"
                     )
                 ),
-                rx.box(rx.text("Grand Total", font_weight="bold", color="white", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="3", overflow="hidden"),
-                bg=COL_HEADER_BG,
+
+                rx.box(rx.text("TOTAL", font_weight="bold", color="white", font_size="9px", text_align="center", letter_spacing="0.1em"), width="140px", min_width="140px", max_width="140px", padding_y="3", overflow="hidden", bg="#064E3B"),
+                bg="#064E3B",
                 width="100%",
                 align="center",
-                border_left="1px solid #4A5568", 
-                border_right="1px solid #4A5568",
+                border_bottom=f"1px solid {BORDER_COLOR}",
             ),
             
             # BODY ROWS
@@ -3760,25 +3849,29 @@ def monthly_sales_return_table() -> rx.Component:
                     State.monthly_sales_return_data,
                     lambda row: rx.box(
                          rx.flex(
-                            rx.box(rx.text(row.channel, font_weight="bold", color="black", font_size="sm"), width="300px", min_width="300px", max_width="300px", padding_left="4", padding_y="3", border_right=f"1px solid {BORDER_COLOR}", overflow="hidden"),
+                            rx.box(rx.text(row.channel, font_weight="bold", color=rx.cond(row.is_total, "white", "gray.300"), font_size="9px", text_transform="capitalize"), width="240px", min_width="240px", max_width="240px", padding_left="4", padding_y="3", border_right=f"1px solid {BORDER_COLOR}", overflow="hidden"),
                             rx.foreach(
                                 row.monthly_values,
                                 lambda m, i: rx.flex(
-                                    rx.text(m.value, color="black", font_size="sm", text_align="center", width="100%", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"), 
+                                    rx.text(m.value, color=rx.cond(row.is_total, "white", "gray.400"), font_size="9px", text_align="center", width="100%", white_space="nowrap", text_overflow="ellipsis", overflow="hidden"),  
                                     width=MONTH_COL_WIDTH,
                                     min_width=MONTH_COL_WIDTH,
                                     max_width=MONTH_COL_WIDTH,
                                     flex="none", 
                                     padding_y="3", 
                                     border_right=f"1px solid {BORDER_COLOR}", 
-                                    bg=rx.cond(i % 2 == 0, "white", "#FED7E2"), # Darker Red Shading (Red 100)
+                                    bg=rx.cond(
+                                        row.is_total,
+                                        rx.cond(i % 2 == 0, "rgba(255,255,255,0.05)", "rgba(255,255,255,0.02)"),
+                                        rx.cond(i % 2 == 0, "transparent", "rgba(255,255,255,0.04)")
+                                    ), 
                                     justify="center",
                                     align="center",
                                     overflow="hidden"
                                 )
                             ),
-                                rx.box(rx.text(row.total_value, font_weight="bold", color="black", font_size="sm", text_align="center"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, max_width=MONTH_COL_WIDTH, padding_y="3", overflow="hidden"),
-                            bg=rx.cond(row.is_total, FOOTER_BG, ROW_BG),
+                                rx.box(rx.text(row.total_value, font_weight="bold", color=rx.cond(row.is_total, "#22c55e", "white"), font_size=rx.cond(row.is_total, "sm", "9px"), text_align="center"), width="140px", min_width="140px", max_width="140px", padding_y="3", overflow="hidden", bg=rx.cond(row.is_total, "#000000", "#000000")),
+                            bg=rx.cond(row.is_total, "#064E3B", "transparent"),
                             width="100%",
                             align="center",
                             border_top=rx.cond(row.is_total, f"1px solid {BORDER_COLOR}", "none"),
@@ -3792,24 +3885,17 @@ def monthly_sales_return_table() -> rx.Component:
             width="100%",
             overflow="auto", 
         ),
-        bg="transparent",
+        bg="#000000",
         width="100%",
-        min_width="1290px",
+        min_width="1230px", # Corrected Width
+        border_radius="xl",
+        border=f"1px solid {BORDER_COLOR}",
         box_shadow="lg",
     )
 
 def invoice_vs_return_table() -> rx.Component:
-    # Blue/Cornflower Theme
-    TITLE_BG = "#4299E1" # Blue 500
-    COL_HEADER_BG = "#2D3748"
-    SUB_HEADER_BG = "#4A5568"
-    ROW_BG = "white"
-    FOOTER_BG = "#BEE3F8" # Light Blue
-    PCT_BG = "#E6FFFA" # Mintish for Pct
-    BORDER_COLOR = "#E2E8F0"
-    
-    COL_WIDTH = "70px" # Smaller cols for Inv/Ret
-    MONTH_COL_WIDTH = "200px" 
+    COL_WIDTH = "68px" # Smaller cols for Inv/Ret
+    MONTH_COL_WIDTH = "150px" 
 
     return rx.box(
         # 1. Main Title Bar
@@ -3817,7 +3903,7 @@ def invoice_vs_return_table() -> rx.Component:
              rx.box(
                 rx.hstack(
                      rx.icon("file-text", size=20, color="white"),
-                    rx.text("Invoice vs Sales Return", font_size="md", font_weight="bold", color="white", text_align="center"),
+                    rx.text(f"Invoice vs Sales Return {State.table_date_range_title}", font_size="md", font_weight="900", color="white", letter_spacing="0.05em", text_align="center"),
                     justify="center",
                     align="center", 
                     spacing="2"
@@ -3826,11 +3912,11 @@ def invoice_vs_return_table() -> rx.Component:
              ),
             align="center",
             justify="center",
-            padding="3",
-            bg=TITLE_BG,
-            border_top_left_radius="lg",
-            border_top_right_radius="lg",
-            border="1px solid #4A5568",
+            padding="4",
+            bg=CARD_BG,
+            border_bottom=f"1px solid {BORDER_COLOR}",
+            border_top_left_radius="xl",
+            border_top_right_radius="xl",
         ),
         
         rx.box(
@@ -3839,14 +3925,13 @@ def invoice_vs_return_table() -> rx.Component:
                  # Column 1: Month (Merged Vertically)
                  rx.box(
                      rx.center(
-                         rx.text("Month", font_weight="bold", color="white", font_size="sm"),
+                         rx.text("MONTH", font_weight="bold", color="gray.400", font_size="9px", letter_spacing="0.1em"),
                          height="100%",
                          width="100%"
                      ),
                      width=MONTH_COL_WIDTH, 
                      min_width=MONTH_COL_WIDTH, 
-                     border_right="1px solid gray", 
-                     bg=COL_HEADER_BG,
+                     border_right=f"1px solid {BORDER_COLOR}", 
                      height="auto", # Fill height of parent flex
                      flex_shrink=0
                  ),
@@ -3857,32 +3942,32 @@ def invoice_vs_return_table() -> rx.Component:
                      rx.flex(
                          rx.foreach(
                              State.invoice_return_columns,
-                             lambda col: rx.flex(
-                                 rx.text(col, font_weight="bold", color="white", font_size="sm", text_align="center", width="100%"),
-                                 width="140px", 
-                                 min_width="140px",
+                             lambda col, i: rx.flex(
+                                 rx.text(col, font_weight="bold", color="gray.400", font_size="9px", text_align="center", width="100%", letter_spacing="0.1em", text_transform="capitalize"),
+                                 width="136px", 
+                                 min_width="136px",
                                  flex="none", 
                                  padding_y="3", 
-                                 border_right="1px solid gray", 
+                                 border_right=f"1px solid {BORDER_COLOR}", 
                                  justify="center", 
                                  align="center",
                                  overflow="hidden"
                              )
                          ),
-                         bg=COL_HEADER_BG,
                          width="fit-content",
-                         spacing="0"
+                         spacing="0",
+                         flex="1"
                      ),
                      
                      # Row B: Inv / Ret Sub-headers
                      rx.flex(
                          rx.foreach(
                              State.invoice_return_columns,
-                             lambda col: rx.flex(
-                                 rx.box(rx.text("Inv", color="#68D391", font_size="xs", font_weight="bold", text_align="center"), width=COL_WIDTH, border_right="1px dotted gray", padding_y="2"),
-                                 rx.box(rx.text("Ret", color="#F56565", font_size="xs", font_weight="bold", text_align="center"), width=COL_WIDTH, border_right="1px solid gray", padding_y="2"),
-                                 width="140px",
-                                 min_width="140px",
+                             lambda col, i: rx.flex(
+                                 rx.box(rx.text("Inv", color="gray.400", font_size="9px", font_weight="bold", text_align="center"), width=COL_WIDTH, border_right=f"1px solid {BORDER_COLOR}", padding_y="2"),
+                                 rx.box(rx.text("Ret", color="#FA5252", font_size="9px", font_weight="bold", text_align="center"), width=COL_WIDTH, border_right=f"1px solid {BORDER_COLOR}", padding_y="2"),
+                                 width="136px",
+                                 min_width="136px",
                                  flex="none",
                                  justify="center",
                                  align="center",
@@ -3890,93 +3975,118 @@ def invoice_vs_return_table() -> rx.Component:
                                  spacing="0"
                              )
                          ),
-                         bg=SUB_HEADER_BG,
                          width="fit-content",
-                         border_top="1px solid gray",
+                         border_top=f"1px solid {BORDER_COLOR}",
                          spacing="0"
                      ),
                      spacing="0",
                      width="fit-content"
-                 ),
-                 width="fit-content",
-                 align="stretch"
-             ),
+                ),
+                # Grand Total Column Header
+                rx.vstack(
+                    rx.flex(
+                        rx.text("Grand Total", font_weight="bold", color="gray.400", font_size="9px", text_align="center", width="100%", letter_spacing="0.1em"),
+                        width="136px", 
+                        min_width="136px",
+                        padding_y="3", 
+                        border_right=f"1px solid {BORDER_COLOR}", 
+                        justify="center", 
+                        align="center",
+                        overflow="hidden",
+                        flex="1"
+                    ),
+                    rx.flex(
+                        rx.box(rx.text("Inv", color="gray.400", font_size="9px", font_weight="bold", text_align="center"), width=COL_WIDTH, border_right=f"1px solid {BORDER_COLOR}", padding_y="2"),
+                        rx.box(rx.text("Ret", color="#FA5252", font_size="9px", font_weight="bold", text_align="center"), width=COL_WIDTH, border_right=f"1px solid {BORDER_COLOR}", padding_y="2"),
+                        width="136px",
+                        min_width="136px",
+                        flex="none",
+                        justify="center",
+                        align="center",
+                        overflow="hidden",
+                        spacing="0",
+                        border_top=f"1px solid {BORDER_COLOR}"
+                    ),
+                    bg="transparent",
+                    width="fit-content",
+                    spacing="0"
+                ), 
+                bg="#064E3B",
+                width="fit-content",
+                align="stretch"
+            ),
 
 
              # BODY
-             rx.vstack(
-                 rx.foreach(
-                     State.invoice_vs_return_data,
-                     lambda row: rx.flex(
-                         rx.box(rx.text(row.month, font_weight="bold", color="black", font_size="sm"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, padding_left="4", padding_y="3", border_right=f"1px solid {BORDER_COLOR}", overflow="hidden"),
-                         
-                         # Check if it has 'channels' list (Normal Rows)
-                         rx.cond(
-                            row.is_pct,
-                             # PCT ROW
-                             rx.foreach(
-                                 row.channels,
-                                 lambda ch: rx.box(
-                                      rx.text(ch.val, color=ch.color, font_weight="bold", font_size="sm", text_align="center", width="100%"),
-                                      width="140px", # Span 2
-                                      min_width="140px",
-                                      padding_y="3",
-                                      border_right=f"1px solid {BORDER_COLOR}",
-                                        bg=PCT_BG
-                                   )
-                               ),
-                               # ELSE: Normal Data Row or Total Count
-                               rx.foreach(
-                                   row.channels,
-                                   lambda ch, i: rx.flex(
-                                        rx.box(rx.text(ch.inv, color=rx.cond(row.is_total, "black", "black"), font_weight=rx.cond(row.is_total, "bold", "normal"), font_size="sm", text_align="center"), width=COL_WIDTH, padding_y="3", border_right=f"1px dotted {BORDER_COLOR}"),
-                                        rx.box(rx.text(ch.ret, color=ch.ret_color, font_weight="bold", font_size="sm", text_align="center"), width=COL_WIDTH, padding_y="3", border_right=f"1px solid {BORDER_COLOR}"),
-                                        width="140px",
-                                        min_width="140px",
-                                        align="center",
-                                        bg=rx.cond(i % 2 == 0, rx.cond(row.is_total, FOOTER_BG, ROW_BG), rx.cond(row.is_total, FOOTER_BG, "#BEE3F8")) # Darker Blue Shading (Blue 100)
-                                   )
+            rx.vstack(
+                rx.foreach(
+                    State.invoice_vs_return_data,
+                    lambda row: rx.flex(
+                        rx.box(rx.text(row.month, font_weight="bold", color="white", font_size="9px"), width=MONTH_COL_WIDTH, min_width=MONTH_COL_WIDTH, padding_left="4", padding_y="3", border_right=f"1px solid {BORDER_COLOR}", overflow="hidden"),
+                        
+                        # Check if it has 'channels' list (Normal Rows)
+                        rx.cond(
+                           row.is_pct,
+                            # PCT ROW
+                            rx.foreach(
+                                row.channels, 
+                                lambda chan, i: rx.flex(
+                                   rx.text(chan.val, color=chan.color, font_size="9px", font_weight="bold", text_align="center", width="100%"),
+                                   width="136px",
+                                   min_width="136px",
+                                   flex="none",
+                                   padding_y="2",
+                                   bg=rx.cond(
+                                       row.is_total,
+                                       rx.cond(i % 2 == 0, "rgba(255,255,255,0.05)", "rgba(255,255,255,0.02)"),
+                                       rx.cond(i % 2 == 0, "transparent", "rgba(255,255,255,0.04)")
+                                   ), 
+                                   border_right=f"1px solid {BORDER_COLOR}",
+                                   justify="center",
+                                   align="center"
                                )
-                           ),
-                           rx.cond(
-                              row.is_pct,
-                               rx.box(
-                                    rx.text(row.grand_total_val, color="green", font_weight="bold", font_size="sm", text_align="center", width="100%"),
-                                    width="140px", 
-                                    min_width="140px",
-                                    padding_y="3",
-                                    border_right=f"1px solid {BORDER_COLOR}",
-                                    bg=PCT_BG
-                               ),
-                               rx.flex(
-                                    rx.box(rx.text(row.grand_total_inv, color="black", font_weight="bold", font_size="sm", text_align="center"), width=COL_WIDTH, padding_y="3", border_right=f"1px dotted {BORDER_COLOR}"),
-                                    rx.box(rx.text(row.grand_total_ret, color="red", font_weight="bold", font_size="sm", text_align="center"), width=COL_WIDTH, padding_y="3", border_right=f"1px solid {BORDER_COLOR}"),
-                                    width="140px",
-                                    min_width="140px",
+                            ),
+                            # DATA ROW
+                            rx.foreach(
+                                row.channels,
+                                lambda chan, i: rx.flex(
+                                    rx.box(rx.text(chan.inv, color=rx.cond(chan.channel=="Grand Total", "#22c55e", "white"), font_size="9px", text_align="center"), width=COL_WIDTH, border_right=f"1px solid {BORDER_COLOR}", padding_y="2"),
+                                    rx.box(rx.text(chan.ret, color="#FA5252", font_size="9px", text_align="center"), width=COL_WIDTH, border_right=f"1px solid {BORDER_COLOR}", padding_y="2"),
+                                    width="136px",
+                                    min_width="136px",
+                                    flex="none",
+                                    justify="center",
                                     align="center",
-                                    bg=rx.cond(row.is_total, FOOTER_BG, "#EBF8FF") # Shade Grand Total Column Blue
-                               )
-                           ),
-                           
-                           bg=rx.cond(row.is_total, FOOTER_BG, ROW_BG),
-                           width="fit-content",
-                           border_bottom=f"1px solid {BORDER_COLOR}",
-                           align="center"
-                       )
+                                    overflow="hidden",
+                                    spacing="0",
+                                    bg=rx.cond(
+                                       row.is_total,
+                                       rx.cond(i % 2 == 0, "rgba(255,255,255,0.05)", "rgba(255,255,255,0.02)"),
+                                       rx.cond(i % 2 == 0, "transparent", "rgba(255,255,255,0.04)")
+                                   )
+                                )
+                            )
+                        ),
+                        bg=rx.cond(row.is_total, "#064E3B", "transparent"), # Greenish for total row
+                        width="fit-content",
+                        border_bottom=f"1px solid {BORDER_COLOR}",
+                        align="center"
+                    )
                  ),
                  width="fit-content",
-                 spacing="0",
+                 spacing="0"
              ),
-             
              width="100%",
-             overflow="auto",
+             overflow="auto", 
         ),
-        bg="transparent",
+        bg="#000000",
         width="100%",
+        min_width="1230px",
+        border_radius="xl",
+        border=f"1px solid {BORDER_COLOR}",
         box_shadow="lg",
     )
 
-# Channel Sales Card
 # Channel Sales Card
 def channel_sales_card() -> rx.Component:
     return rx.card(
