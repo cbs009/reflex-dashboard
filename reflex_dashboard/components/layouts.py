@@ -8,6 +8,7 @@ from .ai import ai_chat_component
 from .charts import channel_sales_card
 from .tables import monthly_summary_table, monthly_sales_return_table, invoice_vs_return_table
 from .customer import customer_tab_content
+from .intro import intro_tab_content
 
 def courier_performance_card():
     return rx.box(
@@ -635,14 +636,25 @@ def placeholder_tab(title: str) -> rx.Component:
         width="100%"
     )
 
+
+
 def index() -> rx.Component:
     return rx.box(
         rx.cond(
             # CONDITIONAL: Show No Data View if dashboard is not started
             ~State.show_dashboard,
             no_data_view(),
-            # ELSE: Show New Enterprise Layout
-            rx.box(
+            # ELSE: Dashboard is active
+            rx.cond(
+                State.show_intro,
+                rx.box(
+                    intro_tab_content(),
+                    height="100vh",
+                    width="100%",
+                    bg="black"
+                ),
+                # ELSE: Show New Enterprise Layout
+                rx.box(
                 date_picker_modal(),
                 # 1. Main Header
                 rx.box(
@@ -682,7 +694,7 @@ def index() -> rx.Component:
                 # 2. Tabs Navigation
                 rx.tabs.root(
                     rx.tabs.list(
-                        rx.tabs.trigger("OVERVIEW", value="overview", color="white", font_weight="bold", padding_x="4", font_size="19px"),
+                        rx.tabs.trigger("BUSINESS SUMMARY", value="overview", color="white", font_weight="bold", padding_x="4", font_size="19px"),
                         rx.tabs.trigger("PREDICTIVE ENGINE", value="predictive", color="gray.300", font_weight="medium", padding_x="4", font_size="19px"),
                         rx.tabs.trigger("STRATEGY LAB", value="strategy", color="gray.300", font_weight="medium", padding_x="4", font_size="19px"),
                         rx.tabs.trigger("FINANCIAL AUDIT", value="finance", color="gray.300", font_weight="medium", padding_x="4", font_size="19px"),
@@ -744,6 +756,7 @@ def index() -> rx.Component:
 
                 width="100%",
                 bg=CONTENT_BG,
+            ),
             )
         ),
         width="100%",

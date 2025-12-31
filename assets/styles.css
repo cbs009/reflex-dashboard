@@ -1,0 +1,121 @@
+/* --- Animations --- */
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);
+        border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 25px rgba(245, 158, 11, 0.3);
+        border-color: rgba(245, 158, 11, 0.6);
+    }
+}
+
+@keyframes slide-ticker {
+    0% {
+        transform: translateX(100%);
+    }
+
+    100% {
+        transform: translateX(-100%);
+    }
+}
+
+@keyframes code-type {
+    0% {
+        width: 0;
+    }
+
+    100% {
+        width: 100%;
+    }
+}
+
+.animate-float {
+    animation: float 6s ease-in-out infinite;
+}
+
+.font-serif {
+    font-family: 'Playfair Display', serif;
+}
+
+.font-sans {
+    font-family: 'Inter', sans-serif;
+}
+
+.font-mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Menu Item Hover Effects */
+.menu-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.menu-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    border-color: #f59e0b;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.menu-card .ingredients {
+    transform: translateY(100%);
+    transition: transform 0.3s ease-in-out;
+}
+
+.menu-card:hover .ingredients {
+    transform: translateY(0);
+}
+
+/* Ticker Tape */
+.ticker-wrap {
+    width: 100%;
+    overflow: hidden;
+    background-color: #0f172a;
+    padding: 10px 0;
+    border-top: 1px solid #1e293b;
+    border-bottom: 1px solid #1e293b;
+    white-space: nowrap;
+}
+
+.ticker-move {
+    display: inline-block;
+    /* Slowed down from 30s to 60s for better readability */
+    animation: slide-ticker 60s linear infinite;
+}
+
+.ticker-item {
+    display: inline-block;
+    padding: 0 2rem;
+    color: #64748b;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+}
+
+/* SVG Specifics */
+.robot-arm {
+    transform-origin: 0 240px;
+    transition: transform 0.5s;
+}
+
+.menu-card:hover~.svg-container .robot-arm {
+    transform: rotate(-5deg);
+}

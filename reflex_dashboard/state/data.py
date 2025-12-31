@@ -298,6 +298,13 @@ class DataState(FilterState):
              return
         self.show_dashboard = True
 
+    # Intro Page State
+    show_intro: bool = True
+
+    def dismiss_intro(self):
+        """Dismiss the intro page and show the main dashboard."""
+        self.show_intro = False
+
     @property
     def filtered_df(self) -> pd.DataFrame:
         try:
