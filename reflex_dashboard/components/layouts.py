@@ -8,7 +8,9 @@ from .ai import ai_chat_component
 from .charts import channel_sales_card
 from .tables import monthly_summary_table, monthly_sales_return_table, invoice_vs_return_table
 from .customer import customer_tab_content
+from .customer import customer_tab_content
 from .intro import intro_tab_content
+from .predictive import predictive_tab_content
 
 def courier_performance_card():
     return rx.box(
@@ -733,7 +735,7 @@ def index() -> rx.Component:
                             value="overview",
                             padding="6",
                         ),
-                        rx.tabs.content(placeholder_tab("Predictive Engine"), value="predictive"),
+                        rx.tabs.content(predictive_tab_content(), value="predictive"),
                         rx.tabs.content(placeholder_tab("Strategy Lab"), value="strategy"),
                         rx.tabs.content(placeholder_tab("Financial Audit"), value="finance"),
                         rx.tabs.content(placeholder_tab("Operations Lab"), value="operations"),
