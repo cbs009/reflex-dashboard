@@ -69,6 +69,9 @@ class TableState(ChartState):
             sales=("Sales Amount", "sum"),
             orders=("BILLING DOCUMENT", "nunique")
         ).reset_index()
+
+        # Filter out Blinkit and Zepto as requested
+        stats = stats[~stats["Channel"].isin(["Blinkit", "Zepto"])]
         
         stats["aov"] = stats.apply(lambda x: x["sales"] / x["orders"] if x["orders"] > 0 else 0, axis=1)
         stats = stats.sort_values("aov", ascending=False)

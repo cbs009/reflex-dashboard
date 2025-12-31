@@ -149,17 +149,36 @@ class KPIState(DataState):
     @rx.var
     def courier_metrics(self) -> dict:
         """Calculates performance metrics for Courier Service."""
-        if getattr(self, "_courier_df", None) is None or self._courier_df.empty:
+        # TRIGGER: Determine dependency on upload state to force re-calculation
+        if not self.courier_data_uploaded:
+             return {
+                "avg_cost": "₹0.0",
+                "avg_time": "0.0 days",
+                "success_rate": "0.0%",
+                "return_rate": "0.0%"
+            }
+
+        # Use property access
+        df = self.courier_df
+        print(f"DEBUG: courier_metrics called. DF Shape: {df.shape}")
+        
+        if not df.empty:
+             print(f"DEBUG: DF Columns: {df.columns.tolist()}")
+        
+        if df.empty:
             return {
                 "avg_cost": "₹0.0",
                 "avg_time": "0.0 days",
                 "success_rate": "0.0%",
                 "return_rate": "0.0%"
             }
-            
-        df = self._courier_df.copy()
+        
+        # Already copied in property access if using DataStore, but df is a reference. 
+        # Copy to be safe from modifications if we do any below (we don't mutate, but safe practice)
+        df = df.copy()
         
         # 1. Avg Delivery Cost = sum of gross_amount divided by count of waybill_num
+        df["gross_amount"] = pd.to_numeric(df["gross_amount"], errors='coerce').fillna(0)
         total_gross = df["gross_amount"].sum()
         total_waybills = df["waybill_num"].nunique() # Using nunique to be safe, or just len(df) if unique
         avg_cost = total_gross / total_waybills if total_waybills > 0 else 0
@@ -182,12 +201,30 @@ class KPIState(DataState):
         # Successful = status 'Delivered'
         # Total = Total rows
         total_orders = len(df)
-        success_count = len(df[df["status"] == "Delivered"])
-        success_rate = (success_count / total_orders * 100) if total_orders > 0 else 0
         
-        # 4. Return Rate = (Number of courier Returned / Total Number of courier) x 100
-        # Returned = status 'RTO'
-        bfs_count = len(df[df["status"] == "RTO"]) 
+        success_count = 0
+        bfs_count = 0
+        
+        if "status" in df.columns:
+            # Case insensitive match
+            df["status_norm"] = df["status"].astype(str).str.lower().str.strip()
+            
+            # Check unique statuses for debugging
+            unique_statuses = df["status"].unique().tolist()
+            if len(unique_statuses) < 20:
+                 print(f"DEBUG: Unique Statuses found: {unique_statuses}")
+            else:
+                 print(f"DEBUG: Unique Statuses found (first 20): {unique_statuses[:20]}")
+
+            success_count = len(df[df["status_norm"] == "delivered"])
+            
+            # 4. Return Rate = (Number of courier Returned / Total Number of courier) x 100
+            # Returned = status 'RTO'
+            bfs_count = len(df[df["status_norm"] == "rto"]) 
+        else:
+             print("DEBUG: 'status' column missing in courier metrics calculation")
+
+        success_rate = (success_count / total_orders * 100) if total_orders > 0 else 0
         return_rate = (bfs_count / total_orders * 100) if total_orders > 0 else 0
 
         return {

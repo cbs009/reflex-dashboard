@@ -6,7 +6,7 @@ def table_container(title, subtitle, bg_color, content, footer=None):
         rx.flex(
             rx.box(
                 rx.text(title, font_size="lg", font_weight="900", color="white", letter_spacing="0.05em", text_align="center", width="100%"),
-                rx.text(subtitle, font_size="xs", font_weight="bold", color="gray.400", text_align="center", width="100%", letter_spacing="0.05em"),
+                rx.text(subtitle, font_size="xs", font_weight="bold", color="white", text_align="center", width="100%", letter_spacing="0.05em"),
                 width="100%",
             ),
             align="center",

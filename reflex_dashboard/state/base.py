@@ -5,8 +5,7 @@ from typing import List, Dict, Any
 class BaseState(rx.State):
     """The base state with shared data."""
     # Raw Data
-    _df: pd.DataFrame = pd.DataFrame()
-    _courier_df: pd.DataFrame = pd.DataFrame()
+    # Raw data is now stored in StateStore to avoid serialization overhead
     
     # Debug / Deployment Status
     deployment_status: str = ""
@@ -24,3 +23,7 @@ class BaseState(rx.State):
     
     def close_upload_modal(self):
         self.is_upload_modal_open = False
+
+    def get_token(self) -> str:
+        """Get the current session ID token."""
+        return self.router.session.session_id

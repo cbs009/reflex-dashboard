@@ -4,7 +4,7 @@ from ..colors import CARD_BG, TEXT_COLOR
 
 # Channel Sales Card
 def channel_sales_card() -> rx.Component:
-    return rx.card(
+    return rx.box(
         rx.vstack(
             rx.heading("Channel Wise Sale", size="4", color=TEXT_COLOR, width="100%", text_align="center", margin_bottom="4"), 
             
@@ -25,10 +25,10 @@ def channel_sales_card() -> rx.Component:
                         State.channel_sales_stats,
                         lambda item: rx.hstack(
                              rx.box(width="10px", height="10px", border_radius="50%", bg=item["color"]),
-                             rx.text(item["channel"], color="gray.300", font_size="sm", font_weight="medium"),
+                             rx.text(item["channel"], color="white", font_size="sm", font_weight="medium"),
                              rx.spacer(),
                              rx.text(item["value"], color="white", font_size="sm", font_weight="bold"),
-                             rx.text(item["pct"], color="gray.500", font_size="xs", font_weight="medium"),
+                             rx.text(item["pct"], color="white", font_size="xs", font_weight="medium"),
                              width="100%",
                              padding_y="1",
                              border_bottom="1px dashed #4A5568",
@@ -48,7 +48,7 @@ def channel_sales_card() -> rx.Component:
             ),
             width="100%",
         ),
-        bg=CARD_BG,
+        bg="#000000",
         border_radius="xl",
         box_shadow="lg",
         border="1px solid #4A5568",

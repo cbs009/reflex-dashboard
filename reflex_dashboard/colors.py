@@ -9,7 +9,7 @@ CHART_COLORS = ["#3182CE", "#2F855A", "#D69E2E", "#C05621", "#805AD5", "#2C7A7B"
 
 SIDEBAR_BG = "#000000" # Pitch Black sidebar
 CONTENT_BG = "#000000" # Pitch Black content
-CARD_BG = "#0A0A0A" # Deepest Gray/Black for cards
+CARD_BG = "#000000" # Deepest Gray/Black for cards
 TEXT_COLOR = "#FFFFFF" # Pure White
 ACCENT_COLOR = "#D4AF37" # Metallic Gold for Luxury Accent (was Light Blue)
 BORDER_COLOR = "#333333" # Subtle dark borders

@@ -21,6 +21,19 @@ class FilterState(BaseState):
     # Date Range Filter
     start_date: str = ""
     end_date: str = ""
+    min_date: str = ""
+    max_date: str = ""
+
+    def reset_filters(self):
+        """Reset all filters to default state (Select All)."""
+        self.selected_months = self.months
+        self.selected_states = self.states
+        self.selected_brands = self.brands
+        self.selected_channels = self.channels
+        self.selected_supply_types = self.supply_types
+        # Reset dates to full range
+        self.start_date = self.min_date
+        self.end_date = self.max_date
 
     def set_start_date(self, val: str):
         self.start_date = val
