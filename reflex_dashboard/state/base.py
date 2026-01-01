@@ -17,6 +17,9 @@ class BaseState(rx.State):
 
     # Sidebar State
     is_sidebar_open: bool = True
+    
+    # Dashboard Tab State (Controls active tab)
+    current_tab: str = ""
 
     def toggle_sidebar(self):
         self.is_sidebar_open = not self.is_sidebar_open

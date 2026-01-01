@@ -21,6 +21,11 @@ app = rx.App(
     style={
         "font_family": "Inter, sans-serif",
         "background_color": "#000000",
+        "@keyframes popIn": {
+            "0%": {"transform": "scale(0.6)", "opacity": "0"},
+            "60%": {"transform": "scale(1.08)", "opacity": "1"},
+            "100%": {"transform": "scale(1.0)", "opacity": "1"},
+        },
     }
 )
 app.add_page(index, title="Sales Dashboard")
