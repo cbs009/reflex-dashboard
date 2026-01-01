@@ -13,6 +13,7 @@ def table_container(title, subtitle, bg_color, content, footer=None):
             justify="center",
             padding="4",
             border_bottom=f"1px solid {BORDER_COLOR}",
+            border_radius="xl xl 0 0", # Radius top only
             bg="rgba(255, 255, 255, 0.02)"
         ),
         content,
@@ -51,4 +52,17 @@ def trend_badge(trend: str, text_color: str = None, font_size: str = "0.7em"):
             "boxShadow": "0 2px 4px rgba(0,0,0,0.1)",
             "whiteSpace": "nowrap",
         }
+    )
+
+def placeholder_tab(title: str) -> rx.Component:
+    return rx.center(
+        rx.vstack(
+            rx.icon("construction", size=48, color="#555"),
+            rx.heading(title, size="6", color="white"),
+            rx.text("Module under development", color="gray.500"),
+            spacing="4",
+            align="center"
+        ),
+        height="50vh",
+        width="100%"
     )
