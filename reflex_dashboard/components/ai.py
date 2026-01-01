@@ -12,18 +12,24 @@ def ai_chat_component():
                     value=State.current_question,
                     on_change=State.set_current_question,
                     bg="gray.800",
-                    color="white",
+                    color="rgb(160, 117, 139)", # User requested gray
+                    font_weight="bold", # User requested bold
                     width="100%",
+                    height="28px", 
                     border="1px solid #4A5568",
                     text_align="center",
+                    font_size="sm", 
                 ),
                 rx.button(
                     "Send", 
                     on_click=State.ask_gemini,
                     color_scheme="blue",
+                    height="28px", 
+                    size="1", 
                     is_loading=State.is_ai_thinking
                 ),
-                width="100%",
+                width="50%", 
+                margin_x="auto", 
                 padding_bottom="4"
             ),
             rx.scroll_area(

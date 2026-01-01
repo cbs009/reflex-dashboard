@@ -1,8 +1,12 @@
 import reflex as rx
 import os
-import google.generativeai as genai
+from google import genai
 from typing import List, Dict
 from .tables import TableState
+
+from dotenv import load_dotenv
+
+load_dotenv() # Explicitly load .env file
 
 # --- Configuration ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
@@ -27,18 +31,18 @@ class AIState(TableState):
         yield
 
         try:
-            if not GEMINI_API_KEY:
-                # Fallback to looking in os.environ for runtime if not loaded at top level
-                # But it should be there.
+            # Initialize Client
+            api_key = GEMINI_API_KEY
+            if not api_key:
                 api_key = os.environ.get("GEMINI_API_KEY", "")
-                if not api_key:
-                    response_text = "Please set your GEMINI_API_KEY in the environment or code to use this feature."
-                else:
-                    genai.configure(api_key=api_key)
-            else:
-                genai.configure(api_key=GEMINI_API_KEY)
-                
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            
+            if not api_key:
+                response_text = "Please set your GEMINI_API_KEY in the environment or code to use this feature."
+                self.chat_history.append({"role": "ai", "text": response_text})
+                self.is_ai_thinking = False
+                return
+
+            client = genai.Client(api_key=api_key)
             
             context = "No data loaded yet."
             if not self.filtered_df.empty:
@@ -61,7 +65,11 @@ class AIState(TableState):
             else:
                 context = f"User Question: {question}"
             
-            response = model.generate_content(context)
+            # Generate content using the new SDK
+            response = client.models.generate_content(
+                model='gemini-3-pro-preview',
+                contents=context
+            )
             response_text = response.text
 
             self.chat_history.append({"role": "ai", "text": response_text})

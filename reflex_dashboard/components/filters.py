@@ -109,38 +109,40 @@ def date_picker_modal() -> rx.Component:
         open=State.show_picker,
     )
 
-def filter_popover(label: str, icon: str, items: list, selected_items: list, toggle_all_fn, toggle_item_fn) -> rx.Component:
+def filter_popover(label: str, icon: str, items: list, selected_items: list, toggle_all_fn, toggle_item_fn, color_scheme: str = "gray") -> rx.Component:
     """Helper to create a filter popover."""
     return rx.popover.root(
         rx.popover.trigger(
             rx.button(
                 rx.hstack(
-                    rx.icon(icon, size=16),
-                    rx.text(label, font_size="sm", font_weight="bold"),
-                    rx.icon("chevron-down", size=14, color="gray.400"),
+                    rx.icon(icon, size=18), # Slightly larger icon
+                    rx.text(label, font_size="15px", font_weight="bold"),
+                    rx.icon("chevron-down", size=16, opacity=0.7),
                     spacing="2",
                     align="center"
                 ),
-                variant="ghost", 
-                color_scheme="gray",
-                color="white",
-                _hover={"bg": "rgba(255,255,255,0.1)"}
+                variant="surface", # Surface variant for pop
+                color_scheme=color_scheme, # Use specific color
+                size="3", # Larger button
+                high_contrast=True,
+                cursor="pointer",
+                _hover={"opacity": 0.9, "transform": "scale(1.02)"},
+                transition="all 0.2s"
             )
         ),
         rx.popover.content(
              rx.vstack(
-                rx.checkbox("Select All", on_change=toggle_all_fn, color_scheme="gray", size="1"),
+                rx.checkbox(rx.text("Select All", color="white"), on_change=toggle_all_fn, color_scheme="gray", size="1"),
                 rx.scroll_area(
                     rx.vstack(
                         rx.foreach(
                             items,
                             lambda item: rx.checkbox(
-                                item,
+                                rx.text(item, color="white"),
                                 checked=selected_items.contains(item),
                                 on_change=lambda checked: toggle_item_fn(item, checked),
                                 color_scheme="gray", 
-                                size="1",
-                                color="white"
+                                size="1"
                             )
                         ),
                         spacing="2",
@@ -163,77 +165,84 @@ def horizontal_filter_bar() -> rx.Component:
     """The modern horizontal filter bar."""
     return rx.box(
         rx.flex(
-            # Left Side: Date Range + Filters
+            rx.spacer(), # Spacer on Left
+            
+            # 1. Date Range
             rx.hstack(
-                # 1. Date Range
                 rx.hstack(
-                    rx.icon("calendar-days", size=16, color=ACCENT_COLOR),
-                    rx.text("PERIOD:", font_weight="900", color="white", font_size="xs"),
-                    
-                    # From
-                    rx.box(
-                        rx.hstack(
-                            rx.text(rx.cond(State.start_date, State.start_date, "From"), color="white", font_size="sm", font_weight="medium"),
-                            rx.icon("chevron-down", size=12, color="gray.500"),
-                            spacing="2", align="center"
-                        ),
-                        padding="2",
-                        border=f"1px solid {BORDER_COLOR}",
-                        border_radius="md",
-                        cursor="pointer",
-                        on_click=lambda: State.open_picker("start"),
-                        _hover={"bg": "rgba(255,255,255,0.05)"}
-                    ),
-                    rx.text("-", color="gray.500"),
-                    # To
-                    rx.box(
-                        rx.hstack(
-                            rx.text(rx.cond(State.end_date, State.end_date, "To"), color="white", font_size="sm", font_weight="medium"),
-                            rx.icon("chevron-down", size=12, color="gray.500"),
-                            spacing="2", align="center"
-                        ),
-                        padding="2",
-                        border=f"1px solid {BORDER_COLOR}",
-                        border_radius="md",
-                        cursor="pointer",
-                        on_click=lambda: State.open_picker("end"),
-                        _hover={"bg": "rgba(255,255,255,0.05)"}
-                    ),
-                    spacing="3",
-                    align="center",
-                    border_right=f"1px solid {BORDER_COLOR}",
-                    padding_right="6",
-                    margin_right="4"
+                   rx.icon("calendar-days", size=16, color=ACCENT_COLOR),
+                   rx.text("PERIOD:", font_weight="900", color="white", font_size="xs"),
+                   spacing="2",
+                   align="center",
+                   margin_right="2"
                 ),
                 
-                # 2. Filters Group (Increased Spacing)
-                rx.hstack(
-                     filter_popover("Region", "map", State.states, State.selected_states, State.toggle_all_states, State.toggle_state),
-                     filter_popover("Brand", "tag", State.brands, State.selected_brands, State.toggle_all_brands, State.toggle_brand),
-                     filter_popover("Channel", "share-2", State.channels, State.selected_channels, State.toggle_all_channels, State.toggle_channel),
-                     filter_popover("Supply", "truck", State.supply_types, State.selected_supply_types, State.toggle_all_supply, State.toggle_supply),
-                     spacing="5" # Increased spacing between filters
+                # From
+                rx.box(
+                    rx.hstack(
+                        rx.text(rx.cond(State.start_date, State.start_date, "From"), color="white", font_size="sm", font_weight="medium"),
+                        rx.icon("chevron-down", size=12, color="gray.500"),
+                        spacing="2", align="center"
+                    ),
+                    padding="2",
+                    border=f"1px solid {BORDER_COLOR}",
+                    border_radius="md",
+                    cursor="pointer",
+                    on_click=lambda: State.open_picker("start"),
+                    _hover={"bg": "rgba(255,255,255,0.05)"}
                 ),
+                rx.text("-", color="gray.500"),
+                # To
+                rx.box(
+                    rx.hstack(
+                        rx.text(rx.cond(State.end_date, State.end_date, "To"), color="white", font_size="sm", font_weight="medium"),
+                        rx.icon("chevron-down", size=12, color="gray.500"),
+                        spacing="2", align="center"
+                    ),
+                    padding="2",
+                    border=f"1px solid {BORDER_COLOR}",
+                    border_radius="md",
+                    cursor="pointer",
+                    on_click=lambda: State.open_picker("end"),
+                    _hover={"bg": "rgba(255,255,255,0.05)"}
+                ),
+                spacing="3",
                 align="center",
+                border_right=f"1px solid {BORDER_COLOR}",
+                padding_right="6",
+                margin_right="4"
             ),
             
-            rx.spacer(),
-            
-            # 3. Clear Filters Action (More Prominent)
+            # 2. Filters Group
+            rx.hstack(
+                    filter_popover("Region", "map", State.states, State.selected_states, State.toggle_all_states, State.toggle_state, "blue"),
+                    filter_popover("Brand", "tag", State.brands, State.selected_brands, State.toggle_all_brands, State.toggle_brand, "purple"),
+                    filter_popover("Channel", "share-2", State.channels, State.selected_channels, State.toggle_all_channels, State.toggle_channel, "pink"),
+                    filter_popover("Supply", "truck", State.supply_types, State.selected_supply_types, State.toggle_all_supply, State.toggle_supply, "orange"),
+                    spacing="4" 
+            ),
+
+            rx.spacer(), # Spacer on Right
+
+            # 3. Clear Filters Action (Moved to Right - BIG)
             rx.button(
-                "Reset Filters",
+                "Reset",
                 icon="rotate-ccw",
-                variant="surface", # More visible than ghost
+                variant="solid", 
                 color_scheme="red",
-                size="2", # Slightly larger
-                on_click=State.reset_filters # Assuming this method exists or will track, otherwise just UI for now
+                size="4", # Maximum standard size
+                padding_x="8", # Extra padding
+                padding_y="6",
+                font_size="xl", # Larger font
+                margin_left="4",
+                on_click=State.reset_filters 
             ),
 
             width="100%",
-            max_width="1900px", # Align with dashboard content
-            margin_x="auto",    # Center align
+            max_width="1900px", 
+            margin_x="auto",    
             align="center",
-            justify="between", # Ensure separation
+            justify="center", 
             padding_x="6",
             padding_y="4"
         ),

@@ -144,8 +144,8 @@ def predictive_tab_content() -> rx.Component:
                             PredictiveState.demand_planning_display,
                             lambda row: rx.table.row(
                                 rx.table.cell(rx.text(row["SKU_ID"], font_weight="bold", color="white")),
-                                rx.table.cell(rx.text(row["Category"], color="gray.300")),
-                                rx.table.cell(rx.badge(row["Current Stock"], variant="outline", color_scheme="gray"), text_align="center"),
+                                rx.table.cell(rx.text(row["Category"], color="white")), # Changed to white
+                                rx.table.cell(rx.text(row["Current Stock"], font_weight="bold", color="white"), text_align="center"), # Changed to bold white text for visibility
                                 rx.table.cell(rx.badge(row["Forecasted Demand (M+1)"], variant="solid", color_scheme="blue"), text_align="center"),
                                 rx.table.cell(rx.text(row["Reorder Qty"], font_weight="bold", color="white"), text_align="center"),
                                 rx.table.cell(
@@ -192,8 +192,8 @@ def predictive_tab_content() -> rx.Component:
                                     justify="between",
                                     width="100%"
                                 ),
-                                rx.text(item["Alert Message"], color="gray.300", font_size="sm"),
-                                rx.text(f"Days Cover: {item['Days Cover']} days", color="gray.500", font_size="xs"),
+                                rx.text(item["Alert Message"], color="white", font_weight="bold", font_size="sm"), # Changed to bold white
+                                rx.text(f"Days Cover: {item['Days Cover']} days", color="white", font_weight="bold", font_size="xs"), # Changed to bold white
                                 align="start",
                                 spacing="2"
                             ),

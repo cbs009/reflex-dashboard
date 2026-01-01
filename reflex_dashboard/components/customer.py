@@ -13,7 +13,7 @@ def section_header(icon: str, title: str, subtitle: str = None) -> rx.Component:
         ),
         rx.cond(
             subtitle is not None,
-            rx.text(subtitle, font_size="10px", color="gray.500", font_weight="bold", letter_spacing="0.05em"),
+            rx.text(subtitle, font_size="10px", color="white", font_weight="bold", letter_spacing="0.05em"), # Changed to white
             rx.fragment()
         ),
         spacing="1",
@@ -33,7 +33,7 @@ def rfm_radar_card() -> rx.Component:
             height="100%",
         ),
         rx.box(
-            rx.text("INTERPRETATION: This radar chart maps the customer base across 5 key dimensions. High scores in 'Recency' and 'Frequency' indicate active engagement, while 'Bundling' shows cross-category purchasing behavior.", font_size="xs", color="gray.400", text_align="center"),
+            rx.text("INTERPRETATION: This radar chart maps the customer base across 5 key dimensions. High scores in 'Recency' and 'Frequency' indicate active engagement, while 'Bundling' shows cross-category purchasing behavior.", font_size="xs", color="white", text_align="center"), # Changed to white
             bg="rgba(255, 255, 255, 0.05)",
             padding="3",
             border_radius="md",
@@ -61,11 +61,11 @@ def market_basket_row(item: dict) -> rx.Component:
                 padding_bottom="2"
             ),
             rx.hstack(
-                rx.text("Confidence", color="gray.400", font_size="xs", font_weight="bold"),
+                rx.text("Confidence", color="white", font_size="xs", font_weight="bold"), # Changed to white
                 rx.spacer(),
                 rx.text(f"{item['confidence']}%", color="white", font_size="xs", font_weight="bold"),
                 rx.box(
-                    rx.text("SUPPORT", font_size="9px", color="gray.500", font_weight="bold"),
+                    rx.text("SUPPORT", font_size="9px", color="white", font_weight="bold"), # Changed to white
                     rx.text(f"{item['support']}%", font_size="sm", color="white", font_weight="900"),
                     text_align="right",
                     margin_left="4"
@@ -112,7 +112,7 @@ def market_basket_card() -> rx.Component:
             height="660px" # Fixed height
         ),
         rx.box(
-            rx.text("INTERPRETATION: Identifies products frequently bought together. 'Lift' > 1 indicates a strong positive association. High 'Confidence' means if Product A is bought, Product B is highly likely to be bought.", font_size="xs", color="gray.400", text_align="center"),
+            rx.text("INTERPRETATION: Identifies products frequently bought together. 'Lift' > 1 indicates a strong positive association. High 'Confidence' means if Product A is bought, Product B is highly likely to be bought.", font_size="xs", color="white", text_align="center"), # Changed to white
             bg="rgba(255, 255, 255, 0.05)",
             padding="3",
             border_radius="md",
@@ -136,14 +136,14 @@ def revenue_card() -> rx.Component:
             width="100%",
         ),
          rx.hstack(
-            rx.text("Apr", font_size="9px", color="gray.500"),
+            rx.text("Apr", font_size="9px", color="white"), # Changed to white
             rx.spacer(),
-            rx.text("Feb (F)", font_size="9px", color="gray.500"),
+            rx.text("Feb (F)", font_size="9px", color="white"), # Changed to white
              width="100%",
              padding_x="2"
         ),
         rx.box(
-            rx.text("INTERPRETATION: Tracks revenue contribution from New vs Returning customers over time. A rising Returning Revenue (Purple) trend indicates strong retention and customer loyalty.", font_size="xs", color="gray.400", text_align="center"),
+            rx.text("INTERPRETATION: Tracks revenue contribution from New vs Returning customers over time. A rising Returning Revenue (Purple) trend indicates strong retention and customer loyalty.", font_size="xs", color="white", text_align="center"), # Changed to white
             bg="rgba(255, 255, 255, 0.05)",
             padding="3",
             border_radius="md",
@@ -167,14 +167,14 @@ def wallet_share_card() -> rx.Component:
             width="100%",
         ),
         rx.hstack(
-             rx.text("Apr", font_size="9px", color="gray.500"), # Manual axis simulation matching screenshot
+             rx.text("Apr", font_size="9px", color="white"), # Changed to white
              rx.spacer(),
-             rx.text("Feb (F)", font_size="9px", color="gray.500"),
+             rx.text("Feb (F)", font_size="9px", color="white"), # Changed to white
              width="100%",
              padding_x="2"
         ),
         rx.box(
-            rx.text("INTERPRETATION: Shows the percentage of customer spend captured by us. An upward trend suggests we are becoming the primary vendor for our customers, displacing competitors.", font_size="xs", color="gray.400", text_align="center"),
+            rx.text("INTERPRETATION: Shows the percentage of customer spend captured by us. An upward trend suggests we are becoming the primary vendor for our customers, displacing competitors.", font_size="xs", color="white", text_align="center"), # Changed to white
             bg="rgba(255, 255, 255, 0.05)",
             padding="3",
             border_radius="md",
@@ -199,17 +199,17 @@ def ltv_segments_card() -> rx.Component:
         ),
         # Custom Legend
         rx.hstack(
-            rx.hstack(rx.box(width="10px", height="10px", bg="#39FF14"), rx.text("Champions", font_size="9px", color="gray.400"), align="center", spacing="1"),
-            rx.hstack(rx.box(width="10px", height="10px", bg="#A0AEC0"), rx.text("Loyal", font_size="9px", color="gray.400"), align="center", spacing="1"),
-            rx.hstack(rx.box(width="10px", height="10px", bg="#718096"), rx.text("Potential", font_size="9px", color="gray.400"), align="center", spacing="1"),
-            rx.hstack(rx.box(width="10px", height="10px", bg="#FF0000"), rx.text("Churning", font_size="9px", color="gray.400"), align="center", spacing="1"),
+            rx.hstack(rx.box(width="10px", height="10px", bg="#39FF14"), rx.text("Champions", font_size="9px", color="white"), align="center", spacing="1"), # Changed to white
+            rx.hstack(rx.box(width="10px", height="10px", bg="#A0AEC0"), rx.text("Loyal", font_size="9px", color="white"), align="center", spacing="1"), # Changed to white
+            rx.hstack(rx.box(width="10px", height="10px", bg="#718096"), rx.text("Potential", font_size="9px", color="white"), align="center", spacing="1"), # Changed to white
+            rx.hstack(rx.box(width="10px", height="10px", bg="#FF0000"), rx.text("Churning", font_size="9px", color="white"), align="center", spacing="1"), # Changed to white
             spacing="3",
             width="100%",
             justify="center",
             margin_top="2"
         ),
         rx.box(
-            rx.text("INTERPRETATION: Segment distribution based on predicted Lifetime Value (LTV). 'Champions' generate the most value. 'Churning' customers require immediate re-engagement campaigns.", font_size="xs", color="gray.400", text_align="center"),
+            rx.text("INTERPRETATION: Segment distribution based on predicted Lifetime Value (LTV). 'Champions' generate the most value. 'Churning' customers require immediate re-engagement campaigns.", font_size="xs", color="white", text_align="center"), # Changed to white
             bg="rgba(255, 255, 255, 0.05)",
             padding="3",
             border_radius="md",

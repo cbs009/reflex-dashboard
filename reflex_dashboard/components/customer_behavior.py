@@ -7,7 +7,7 @@ def subsection_header(title: str, subtitle: str = "") -> rx.Component:
         rx.heading(title, size="4", color="white", font_weight="bold"),
         rx.cond(
             subtitle != "",
-            rx.text(subtitle, size="2", color="gray.400"),
+            rx.text(subtitle, size="2", color="white"), # Changed to white
             rx.fragment()
         ),
         spacing="1",
@@ -17,14 +17,14 @@ def subsection_header(title: str, subtitle: str = "") -> rx.Component:
 def aov_calculator_card() -> rx.Component:
     return rx.box(
         subsection_header("Purchasing Depth", "Key Metric: Average Order Value (AOV)"),
-        rx.text("AOV = Total Revenue / Total Orders", color="gray.500", font_size="xs", margin_bottom="4"),
-        rx.text("Measures the spending power per transaction.", color="gray.400", font_size="sm", margin_bottom="4"),
+        rx.text("AOV = Total Revenue / Total Orders", color="white", font_size="xs", margin_bottom="4"), # Changed to white
+        rx.text("Measures the spending power per transaction.", color="white", font_size="sm", margin_bottom="4"), # Changed to white
         
         rx.vstack(
             rx.text("Try it:", color="white", font_weight="bold", font_size="sm"),
             rx.grid(
                 rx.vstack(
-                    rx.text("Rev ($)", color="gray.500", font_size="xs"),
+                    rx.text("Rev ($)", color="white", font_size="xs"), # Changed to white
                     rx.input(
                         placeholder="0.00", 
                         on_change=CustomerBehaviorState.set_aov_revenue,
@@ -35,7 +35,7 @@ def aov_calculator_card() -> rx.Component:
                     spacing="1"
                 ),
                 rx.vstack(
-                    rx.text("Orders", color="gray.500", font_size="xs"),
+                    rx.text("Orders", color="white", font_size="xs"), # Changed to white
                     rx.input(
                         placeholder="0", 
                         on_change=CustomerBehaviorState.set_aov_orders,
@@ -90,11 +90,11 @@ def basket_breadth_card() -> rx.Component:
                 spacing="3"
             ),
             rx.box(
-                rx.text("High IPB: Indicates a 'one-stop shop' behavior (Complete restock).", color="gray.300", font_size="sm"),
+                rx.text("High IPB: Indicates a 'one-stop shop' behavior (Complete restock).", color="white", font_size="sm"), # Changed to white
                 margin_top="2"
             ),
             rx.box(
-                rx.text("Low IPB: Indicates 'specific intent' (e.g., buying just one specific SKU).", color="gray.300", font_size="sm"),
+                rx.text("Low IPB: Indicates 'specific intent' (e.g., buying just one specific SKU).", color="white", font_size="sm"), # Changed to white
                 margin_top="2"
             ),
             rx.divider(margin_y="4", border_color="gray.800"),
@@ -120,19 +120,19 @@ def basket_breadth_card() -> rx.Component:
 def purchasing_rhythm_card() -> rx.Component:
     return rx.box(
         subsection_header("Purchasing Rhythm", "Timing: Time Between Purchases (TBP)"),
-        rx.text("Crucial for FMCG. Helps define the 'nudge' window.", color="gray.400", font_size="sm", margin_bottom="4"),
+        rx.text("Crucial for FMCG. Helps define the 'nudge' window.", color="white", font_size="sm", margin_bottom="4"), # Changed to white
         
         rx.center(
             rx.vstack(
                 rx.hstack(
-                    rx.box(rx.text("Purchase 1", font_size="xs", weight="bold"), bg="gray.700", padding="2", border_radius="md"),
-                    rx.icon("arrow-right", color="gray.500"),
+                    rx.box(rx.text("Purchase 1", font_size="xs", weight="bold", color="white"), bg="gray.700", padding="2", border_radius="md"), # Changed to white
+                    rx.icon("arrow-right", color="white"), # Changed to white
                     rx.box(
                         rx.text("7 Days (Avg)", font_size="xs", weight="bold", color="#00BFFF"), 
                         border="1px dashed #00BFFF", padding="2", border_radius="md"
                     ),
-                    rx.icon("arrow-right", color="gray.500"),
-                    rx.box(rx.text("Purchase 2", font_size="xs", weight="bold"), bg="gray.700", padding="2", border_radius="md"),
+                    rx.icon("arrow-right", color="white"), # Changed to white
+                    rx.box(rx.text("Purchase 2", font_size="xs", weight="bold", color="white"), bg="gray.700", padding="2", border_radius="md"), # Changed to white
                     align="center",
                     spacing="2"
                 ),
@@ -154,8 +154,8 @@ def loyalty_health_card() -> rx.Component:
     return rx.box(
         subsection_header("Loyalty Program Health", "Point Redemption Rate (PRR)"),
         rx.vstack(
-            rx.text("PRR = Points Redeemed / Points Issued", color="gray.500", font_size="xs"),
-            rx.text("A low PRR suggests the loyalty program isn't 'sticky' enough.", color="gray.400", font_size="sm"),
+            rx.text("PRR = Points Redeemed / Points Issued", color="white", font_size="xs"), # Changed to white
+            rx.text("A low PRR suggests the loyalty program isn't 'sticky' enough.", color="white", font_size="sm"), # Changed to white
             
             rx.box(height="10px"),
             
@@ -165,14 +165,14 @@ def loyalty_health_card() -> rx.Component:
                 width="100%", height="8px", bg="gray.800", border_radius="full"
             ),
             rx.hstack(
-                rx.text("Earn First Point", font_size="xs", color="gray.500"),
+                rx.text("Earn First Point", font_size="xs", color="white"), # Changed to white
                 rx.spacer(),
                 rx.text("65% Speed Score", font_size="xs", color="#9D00FF", font_weight="bold"),
                 rx.spacer(),
-                rx.text("First Redemption", font_size="xs", color="gray.500"),
+                rx.text("First Redemption", font_size="xs", color="white"), # Changed to white
                 width="100%"
             ),
-             rx.text("Measures how fast a user engages with rewards after joining.", color="gray.500", font_size="xs", margin_top="2"),
+             rx.text("Measures how fast a user engages with rewards after joining.", color="white", font_size="xs", margin_top="2"), # Changed to white
         ),
         bg=CARD_BG,
         border=f"1px solid {BORDER_COLOR}",
@@ -184,7 +184,7 @@ def loyalty_health_card() -> rx.Component:
 def cohort_analysis_section() -> rx.Component:
     return rx.box(
         rx.heading("Cohort Analysis: The Gold Standard", size="5", color="white", margin_bottom="2"),
-        rx.text("Cohort analysis groups users by their 'Acquisition Month' to track retention over time. This visualization prevents seasonal spikes from hiding long-term churn issues.", color="gray.400", margin_bottom="6"),
+        rx.text("Cohort analysis groups users by their 'Acquisition Month' to track retention over time. This visualization prevents seasonal spikes from hiding long-term churn issues.", color="white", margin_bottom="6"), # Changed to white
         
         rx.grid(
             rx.center(
@@ -198,7 +198,7 @@ def cohort_analysis_section() -> rx.Component:
             rx.vstack(
                 rx.heading("Retention Heatmap", size="3", color="white"),
                 rx.hstack(
-                    rx.text("Low", color="gray.500", font_size="xs"),
+                    rx.text("Low", color="white", font_size="xs"), # Changed to white
                     rx.box(width="100px", height="8px", bg="linear-gradient(90deg, #0E1117, #48BB78)"),
                     rx.text("High", color="#48BB78", font_size="xs"),
                     align="center",
@@ -221,13 +221,13 @@ def cohort_analysis_section() -> rx.Component:
 def predictive_ai_section() -> rx.Component:
     return rx.box(
         rx.heading("Transitioning to AI: Churn Prediction", size="5", color="white", margin_bottom="2"),
-        rx.text("Moving from reactive analysis to proactive engineering. A true AI Engineer builds predictive models to identify who will churn before it happens using Machine Learning pipelines.", color="gray.400", margin_bottom="6"),
+        rx.text("Moving from reactive analysis to proactive engineering. A true AI Engineer builds predictive models to identify who will churn before it happens using Machine Learning pipelines.", color="white", margin_bottom="6"), # Changed to white
         
         rx.grid(
             # Left: Explanation & Feat Eng
             rx.vstack(
                 rx.text("Feature Engineering for ML", color="white", font_weight="bold", font_size="md"),
-                rx.text("Raw data must be transformed into 'features' for algorithms like XGBoost.", color="gray.400", font_size="sm"),
+                rx.text("Raw data must be transformed into 'features' for algorithms like XGBoost.", color="white", font_size="sm"), # Changed to white
                 
                 rx.table.root(
                     rx.table.header(
@@ -237,10 +237,10 @@ def predictive_ai_section() -> rx.Component:
                         )
                     ),
                     rx.table.body(
-                        rx.table.row(rx.table.cell("Recency (R)", color="gray.300"), rx.table.cell("Days since last purchase.", color="gray.500")),
-                        rx.table.row(rx.table.cell("Frequency (F)", color="gray.300"), rx.table.cell("Total purchases in last 180 days.", color="gray.500")),
-                        rx.table.row(rx.table.cell("Monetary (M)", color="gray.300"), rx.table.cell("Total lifetime spend.", color="gray.500")),
-                        rx.table.row(rx.table.cell("Point Balance", color="gray.300"), rx.table.cell("Unspent loyalty points (retention signal).", color="gray.500")),
+                        rx.table.row(rx.table.cell("Recency (R)", color="white"), rx.table.cell("Days since last purchase.", color="white")), # Changed to white
+                        rx.table.row(rx.table.cell("Frequency (F)", color="white"), rx.table.cell("Total purchases in last 180 days.", color="white")), # Changed to white
+                        rx.table.row(rx.table.cell("Monetary (M)", color="white"), rx.table.cell("Total lifetime spend.", color="white")), # Changed to white
+                        rx.table.row(rx.table.cell("Point Balance", color="white"), rx.table.cell("Unspent loyalty points (retention signal).", color="white")), # Changed to white
                     ),
                     width="100%",
                 ),
@@ -255,11 +255,11 @@ def predictive_ai_section() -> rx.Component:
             rx.vstack(
                 rx.text("The Predictive Pipeline", color="white", font_weight="bold", font_size="md", margin_bottom="4"),
                 rx.vstack(
-                    rx.box(rx.text("1. Labeling", weight="bold", color="#F6E05E"), rx.text("Define 'Churn' (e.g. No purchase > 30 days)", font_size="xs", color="gray.400"), bg="rgba(246, 224, 94, 0.1)", padding="3", border_radius="md", width="100%", border="1px dashed #F6E05E"),
-                    rx.icon("arrow-down", color="gray.600"),
-                    rx.box(rx.text("2. Training", weight="bold", color="#4299E1"), rx.text("Use 6-month historical data to predict past behavior.", font_size="xs", color="gray.400"), bg="rgba(66, 153, 225, 0.1)", padding="3", border_radius="md", width="100%", border="1px dashed #4299E1"),
-                    rx.icon("arrow-down", color="gray.600"),
-                    rx.box(rx.text("3. Inference", weight="bold", color="#48BB78"), rx.text("Apply model to current data for 'Probability Scores'.", font_size="xs", color="gray.400"), bg="rgba(72, 187, 120, 0.1)", padding="3", border_radius="md", width="100%", border="1px dashed #48BB78"),
+                    rx.box(rx.text("1. Labeling", weight="bold", color="#F6E05E"), rx.text("Define 'Churn' (e.g. No purchase > 30 days)", font_size="xs", color="white"), bg="rgba(246, 224, 94, 0.1)", padding="3", border_radius="md", width="100%", border="1px dashed #F6E05E"), # Changed to white
+                    rx.icon("arrow-down", color="white"), # Changed to white
+                    rx.box(rx.text("2. Training", weight="bold", color="#4299E1"), rx.text("Use 6-month historical data to predict past behavior.", font_size="xs", color="white"), bg="rgba(66, 153, 225, 0.1)", padding="3", border_radius="md", width="100%", border="1px dashed #4299E1"), # Changed to white
+                    rx.icon("arrow-down", color="white"), # Changed to white
+                    rx.box(rx.text("3. Inference", weight="bold", color="#48BB78"), rx.text("Apply model to current data for 'Probability Scores'.", font_size="xs", color="white"), bg="rgba(72, 187, 120, 0.1)", padding="3", border_radius="md", width="100%", border="1px dashed #48BB78"), # Changed to white
                     align="center",
                     width="100%"
                 ),
@@ -273,7 +273,7 @@ def predictive_ai_section() -> rx.Component:
             # Right: Feature Importance Chart
             rx.vstack(
                 rx.text("Model Output: Feature Importance", color="white", font_weight="bold", font_size="md"),
-                rx.text("Which factors most strongly predict if a customer will leave?", color="gray.400", font_size="sm"),
+                rx.text("Which factors most strongly predict if a customer will leave?", color="white", font_size="sm"), # Changed to white
                 rx.plotly(data=CustomerBehaviorState.feature_importance_chart, height="300px", width="100%"),
                 rx.button("Simulate Model Run", variant="outline", color_scheme="green", size="1", width="100%"),
                 bg=CARD_BG,
@@ -292,27 +292,27 @@ def predictive_ai_section() -> rx.Component:
 def strategic_recommendations_section() -> rx.Component:
     return rx.vstack(
         rx.heading("Strategic Recommendations", size="5", color="white"),
-        rx.text("Data is useless without action. Here are three high-impact strategies derived from advanced analytics.", color="gray.400", margin_bottom="4"),
+        rx.text("Data is useless without action. Here are three high-impact strategies derived from advanced analytics.", color="white", margin_bottom="4"), # Changed to white
         
         rx.grid(
             # Card 1
             rx.box(
                 rx.hstack(rx.icon("crosshair", color="#F6E05E", size=24), rx.heading("Micro-Segmentation", size="3", color="white"), spacing="3", align="center", margin_bottom="3"),
-                rx.text("Move beyond 'Champions'. Use K-Means Clustering to find hidden groups like 'High-Value Occasional Buyers'.", color="gray.400", font_size="sm", margin_bottom="3"),
+                rx.text("Move beyond 'Champions'. Use K-Means Clustering to find hidden groups like 'High-Value Occasional Buyers'.", color="white", font_size="sm", margin_bottom="3"), # Changed to white
                 rx.box(rx.text("Action: Create specific campaigns for festival seasons targeting this cluster.", font_weight="bold", color="white", font_size="xs"), bg="rgba(246, 224, 94, 0.1)", padding="3", border_radius="md"),
                 bg=CARD_BG, padding="6", border_radius="xl", border=f"1px solid {BORDER_COLOR}"
             ),
             # Card 2
             rx.box(
                 rx.hstack(rx.icon("zap", color="#4299E1", size=24), rx.heading("Next Best Action (NBA)", size="3", color="white"), spacing="3", align="center", margin_bottom="3"),
-                rx.text("Don't send generic coupons. Use Market Basket Analysis to predict the exact SKU a customer wants next.", color="gray.400", font_size="sm", margin_bottom="3"),
+                rx.text("Don't send generic coupons. Use Market Basket Analysis to predict the exact SKU a customer wants next.", color="white", font_size="sm", margin_bottom="3"), # Changed to white
                 rx.box(rx.text("Action: If they bought 'Product A', recommend 'Product B' (80% affinity).", font_weight="bold", color="white", font_size="xs"), bg="rgba(66, 153, 225, 0.1)", padding="3", border_radius="md"),
                 bg=CARD_BG, padding="6", border_radius="xl", border=f"1px solid {BORDER_COLOR}"
             ),
             # Card 3
             rx.box(
                 rx.hstack(rx.icon("wallet", color="#48BB78", size=24), rx.heading("Wallet Share Analysis", size="3", color="white"), spacing="3", align="center", margin_bottom="3"),
-                rx.text("Estimate your share of the customer's total category budget compared to competitors.", color="gray.400", font_size="sm", margin_bottom="3"),
+                rx.text("Estimate your share of the customer's total category budget compared to competitors.", color="white", font_size="sm", margin_bottom="3"), # Changed to white
                 rx.box(rx.text("Action: Identify high-spending users with low wallet share and target aggressively.", font_weight="bold", color="white", font_size="xs"), bg="rgba(72, 187, 120, 0.1)", padding="3", border_radius="md"),
                 bg=CARD_BG, padding="6", border_radius="xl", border=f"1px solid {BORDER_COLOR}"
             ),
@@ -329,7 +329,7 @@ def behavioral_metrics_section() -> rx.Component:
     return rx.vstack(
         rx.divider(margin_y="8", border_color="gray.800"),
         rx.heading("Beyond the Dashboard: Behavioral Metrics", size="7", color="white", margin_bottom="6"),
-        rx.text("Current reporting often focuses on 'what' happened. To understand the 'how' and 'why', we must analyze the depth and rhythm of transactions.", color="gray.400", font_size="lg", margin_bottom="8"),
+        rx.text("Current reporting often focuses on 'what' happened. To understand the 'how' and 'why', we must analyze the depth and rhythm of transactions.", color="white", font_size="lg", margin_bottom="8"), # Changed to white
         
         # Row 1: Interactive Cards
         rx.grid(

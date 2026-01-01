@@ -36,13 +36,13 @@ def courier_performance_card():
                 rx.box(
                     rx.vstack(
                         rx.hstack(
-                            rx.icon("indian-rupee", size=14, color="gray"),
-                            rx.text("AVG DELIVERY COST", font_size="xs", font_weight="bold", color="gray.400", letter_spacing="0.1em"),
+                            rx.icon("indian-rupee", size=14, color="white"), # Changed to white
+                            rx.text("AVG DELIVERY COST", font_size="xs", font_weight="bold", color="white", letter_spacing="0.1em"), # Changed to white
                             spacing="2",
                             align="center"
                         ),
                         rx.heading(State.courier_metrics["avg_cost"], size="6", color="white", font_weight="900"),
-                        rx.text("per shipment", font_size="xs", color="gray.500"),
+                        rx.text("per shipment", font_size="xs", color="white", font_weight="bold"), # Max visibility
                         spacing="1",
                         align_items="center"
                     ),
@@ -56,13 +56,13 @@ def courier_performance_card():
                 rx.box(
                      rx.vstack(
                         rx.hstack(
-                            rx.icon("clock", size=14, color="gray"),
-                            rx.text("AVERAGE DELIVERY TIME", font_size="xs", font_weight="bold", color="gray.400", letter_spacing="0.1em"),
+                            rx.icon("clock", size=14, color="white"), 
+                            rx.text("AVERAGE DELIVERY TIME", font_size="xs", font_weight="bold", color="white", letter_spacing="0.1em"), 
                             spacing="2",
                             align="center"
                         ),
                         rx.heading(State.courier_metrics["avg_time"], size="6", color="white", font_weight="900"),
-                        rx.text("pickup to delivered", font_size="xs", color="gray.500"),
+                        rx.text("pickup to delivered", font_size="xs", color="white", font_weight="bold"), # Max visibility
                         spacing="1",
                         align_items="center"
                     ),
@@ -82,7 +82,7 @@ def courier_performance_card():
                             align="center"
                         ),
                         rx.heading(State.courier_metrics["success_rate"], size="6", color="white", font_weight="900"), 
-                        rx.text("delivery rate", font_size="xs", color="gray.500"),
+                        rx.text("delivery rate", font_size="xs", color="white", font_weight="bold"), # Max visibility
                         spacing="1",
                         align_items="center"
                     ),
@@ -102,7 +102,7 @@ def courier_performance_card():
                             align="center"
                         ),
                         rx.heading(State.courier_metrics["return_rate"], size="6", color="white", font_weight="900"), 
-                        rx.text("of total orders", font_size="xs", color="gray.500"),
+                        rx.text("of total orders", font_size="xs", color="white", font_weight="bold"), # Max visibility
                         spacing="1",
                         align_items="center"
                     ),
@@ -657,9 +657,9 @@ def index() -> rx.Component:
                 ),
                 # ELSE: Show New Enterprise Layout
                 rx.box(
-                date_picker_modal(),
-                # 1. Main Header
-                rx.box(
+                    date_picker_modal(),
+                    # 1. Main Header
+                    rx.box(
                     rx.center( # Force centering using rx.center wrapper
                         rx.vstack(
                             rx.hstack(
@@ -693,73 +693,134 @@ def index() -> rx.Component:
                     position="relative",
                 ),
                 
-                # 2. Tabs Navigation
+                # 2. Tabs Navigation (Keyboard Key Style - Centered - 3 Per Row)
                 rx.tabs.root(
                     rx.tabs.list(
-                        rx.tabs.trigger("BUSINESS SUMMARY", value="overview", color="white", font_weight="bold", padding_x="4", font_size="19px"),
-                        rx.tabs.trigger("PREDICTIVE ENGINE", value="predictive", color="gray.300", font_weight="medium", padding_x="4", font_size="19px"),
-                        rx.tabs.trigger("STRATEGY LAB", value="strategy", color="gray.300", font_weight="medium", padding_x="4", font_size="19px"),
-                        rx.tabs.trigger("FINANCIAL AUDIT", value="finance", color="gray.300", font_weight="medium", padding_x="4", font_size="19px"),
-                        rx.tabs.trigger("OPERATIONS LAB", value="operations", color="gray.300", font_weight="medium", padding_x="4", font_size="19px"),
-                        rx.tabs.trigger("CUSTOMER SCIENCE", value="customer", color="gray.300", font_weight="medium", padding_x="4", font_size="19px"),
-                        bg="#000000",
-                        padding_y="2",
-                        border_bottom=f"1px solid {BORDER_COLOR}",
-                        justify="center",
-                        width="100%", # Force full width for centering
-                        max_width="1900px",
-                        margin_x="auto"
-                    ),
-                    
-                    # 3. Filter Bar (Sticky)
-                    rx.box(
-                         horizontal_filter_bar(),
-                         position="sticky",
-                         top="0",
-                         z_index="50",
-                         width="100%"
-                    ),
-                    
-                    # 4. AI Assistant
-                    rx.box(
-                         ai_chat_component(),
-                         padding="4",
-                         bg="#111111",
-                         border_bottom=f"1px solid {BORDER_COLOR}"
-                    ),
-
-                    # 5. Tab Content Areas
-                    rx.box(
-                        rx.tabs.content(
-                            overview_tab_content(),
+                        # Single Row - 6 Tabs
+                        rx.tabs.trigger(
+                            "BUSINESS SUMMARY", 
                             value="overview",
-                            padding="6",
+                            width="100%", height="60px",
+                            bg="rgba(56, 161, 105, 0.15)", # Green tint
+                            border="1px solid #38A169",
+                            color="#38A169",
+                            _active={"bg": "#38A169", "color": "white", "transform": "translateY(2px)", "box_shadow": "none"}, 
+                            style={"border_radius": "8px", "box_shadow": "0px 4px 0px #22543d", "transition": "all 0.1s", "font_weight": "900", "font_size": "15px"},
+                            cursor="pointer"
                         ),
-                        rx.tabs.content(predictive_tab_content(), value="predictive"),
-                        rx.tabs.content(placeholder_tab("Strategy Lab"), value="strategy"),
-                        rx.tabs.content(placeholder_tab("Financial Audit"), value="finance"),
-                        rx.tabs.content(placeholder_tab("Operations Lab"), value="operations"),
-                        rx.tabs.content(
-                            customer_tab_content(),
+                        rx.tabs.trigger(
+                            "PREDICTIVE ENGINE", 
+                            value="predictive",
+                                width="100%", height="60px",
+                            bg="rgba(128, 90, 213, 0.15)", # Purple tint
+                            border="1px solid #805AD5",
+                            color="#805AD5",
+                            _active={"bg": "#805AD5", "color": "white", "transform": "translateY(2px)", "box_shadow": "none"}, 
+                            style={"border_radius": "8px", "box_shadow": "0px 4px 0px #44337a", "transition": "all 0.1s", "font_weight": "900", "font_size": "15px"},
+                            cursor="pointer"
+                        ),
+                        rx.tabs.trigger(
+                            "STRATEGY LAB", 
+                            value="strategy",
+                                width="100%", height="60px",
+                            bg="rgba(49, 130, 206, 0.15)", # Blue tint
+                            border="1px solid #3182CE",
+                            color="#3182CE",
+                            _active={"bg": "#3182CE", "color": "white", "transform": "translateY(2px)", "box_shadow": "none"}, 
+                            style={"border_radius": "8px", "box_shadow": "0px 4px 0px #2a4365", "transition": "all 0.1s", "font_weight": "900", "font_size": "15px"},
+                            cursor="pointer"
+                        ),
+                        rx.tabs.trigger(
+                            "FINANCIAL AUDIT", 
+                            value="finance",
+                                width="100%", height="60px",
+                            bg="rgba(213, 63, 140, 0.15)", # Magenta tint
+                            border="1px solid #D53F8C",
+                            color="#D53F8C",
+                            _active={"bg": "#D53F8C", "color": "white", "transform": "translateY(2px)", "box_shadow": "none"}, 
+                            style={"border_radius": "8px", "box_shadow": "0px 4px 0px #702459", "transition": "all 0.1s", "font_weight": "900", "font_size": "15px"},
+                            cursor="pointer"
+                        ),
+                        rx.tabs.trigger(
+                            "OPERATIONS LAB", 
+                            value="operations",
+                                width="100%", height="60px",
+                            bg="rgba(246, 135, 179, 0.15)", # Pinkish tint
+                            border="1px solid #F687B3",
+                            color="#F687B3",
+                            _active={"bg": "#F687B3", "color": "white", "transform": "translateY(2px)", "box_shadow": "none"}, 
+                            style={"border_radius": "8px", "box_shadow": "0px 4px 0px #97266d", "transition": "all 0.1s", "font_weight": "900", "font_size": "15px"},
+                            cursor="pointer"
+                        ),
+                        rx.tabs.trigger(
+                            "CUSTOMER SCIENCE", 
                             value="customer",
-                            padding="6"
+                                width="100%", height="60px",
+                            bg="rgba(214, 158, 46, 0.15)", # Yellowish tint
+                            border="1px solid #D69E2E",
+                            color="#D69E2E",
+                            _active={"bg": "#D69E2E", "color": "white", "transform": "translateY(2px)", "box_shadow": "none"}, 
+                            style={"border_radius": "8px", "box_shadow": "0px 4px 0px #744210", "transition": "all 0.1s", "font_weight": "900", "font_size": "15px"},
+                            cursor="pointer"
                         ),
                         
-                        bg=CONTENT_BG,
-                        min_height="calc(100vh - 150px)", # Adjust for headers
-                        width="100%",
-                        max_width="1900px", # Limit width for readability
+                        # Apply Grid Styles directly to the list container
+                        display="grid",
+                        grid_template_columns="repeat(6, 1fr)",
+                        gap="16px",
+                        padding_y="24px",
+                        bg="transparent",
+                        width="100%", 
+                        max_width="1600px", 
                         margin_x="auto"
                     ),
-                    
-                    defaultValue="overview",
-                    width="100%",
-                ),
-
-                width="100%",
-                bg=CONTENT_BG,
+                        
+                        # 3. Filter Bar (Sticky)
+                        rx.box(
+                             horizontal_filter_bar(),
+                             position="sticky",
+                             top="0",
+                             z_index="50",
+                             width="100%"
+                        ),
+                        
+                        # 4. AI Assistant
+                        rx.box(
+                             ai_chat_component(),
+                             padding="4",
+                             bg="#111111",
+                             border_bottom=f"1px solid {BORDER_COLOR}"
+                        ),
+    
+                        # 5. Tab Content Areas
+                        rx.box(
+                            rx.tabs.content(
+                                overview_tab_content(),
+                                value="overview",
+                                padding="6",
+                            ),
+                            rx.tabs.content(predictive_tab_content(), value="predictive"),
+                            rx.tabs.content(placeholder_tab("Strategy Lab"), value="strategy"),
+                            rx.tabs.content(placeholder_tab("Financial Audit"), value="finance"),
+                            rx.tabs.content(placeholder_tab("Operations Lab"), value="operations"),
+                            rx.tabs.content(
+                                customer_tab_content(),
+                                value="customer",
+                                padding="6"
+                            ),
+                            
+                            bg=CONTENT_BG,
+                            min_height="calc(100vh - 150px)", # Adjust for headers
+                            width="100%",
+                            max_width="1900px", # Limit width for readability
+                            margin_x="auto"
+                        ),
+                        
+                            defaultValue="overview",
+                        width="100%",
+                    ),
+                )
             ),
-            )
         ),
         width="100%",
         min_height="100vh",
